@@ -1,0 +1,47 @@
+# BrownKit configuration template.
+# Copy to brownkit-config.yml in your project root and customize.
+# Environment overrides: SPECKIT_BROWNKIT_<SECTION>_<KEY>
+
+project:
+  codebase_path: "./"
+  language: "auto"          # auto | java | csharp | python | typescript | go | ...
+  architecture: "auto"      # auto | monolith | microservices | modular-monolith | serverless
+  has_frontend: true
+
+security_scope:
+  compliance: ["OWASP-ASVS"] # e.g. PCI-DSS, HIPAA, SOC2, GDPR
+  threat_standard: "STRIDE"
+  risk_tolerance: "medium"   # low | medium | high
+
+qa_scope:
+  coverage_targets:
+    unit: 0.70
+    integration: 0.30
+    e2e: 0.10
+  environments: ["dev", "staging", "prod"]
+  pyramid_shape: "classic"   # classic | trophy | diamond
+
+weights:
+  unified:
+    security: 0.55
+    qa: 0.45
+  security_composite:
+    likelihood: 0.30
+    impact: 0.40
+    exposure: 0.30
+  qa_composite:
+    coverage_gap: 0.35
+    testability: 0.30
+    defect_density: 0.20
+    change_velocity: 0.15
+
+inputs:
+  # Optional pre-generated anchors. Leave null if not available; pipeline adapts.
+  ndepend_export: null
+  db_schema_export: null
+  coverage_report: null         # path to JaCoCo/Cobertura/Istanbul/coverlet output
+  flaky_test_history: null
+  defect_export: null
+  entry_point_list: null
+
+evidence_dir: "evidence"

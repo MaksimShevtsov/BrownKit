@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "pipeline": "EDCR",
+  "phases": {
+    "init":     { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] },
+    "scan":     { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] },
+    "discover": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] },
+    "report":   { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] },
+    "assess":   { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] },
+    "generate": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] },
+    "finish":   { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] }
+  },
+  "adaptations": {
+    "db_schema_analysis": "auto",
+    "frontend_analysis": "auto",
+    "coverage_source": "auto"
+  },
+  "notes": []
+}

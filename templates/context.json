@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "project": {
+    "name": "",
+    "codebase_path": "./",
+    "language": "auto",
+    "architecture": "auto",
+    "has_frontend": true,
+    "detected": {
+      "primary_languages": [],
+      "build_systems": [],
+      "package_manifests": [],
+      "frameworks": []
+    }
+  },
+  "security_scope": {
+    "compliance": [],
+    "threat_standard": "STRIDE",
+    "risk_tolerance": "medium"
+  },
+  "qa_scope": {
+    "coverage_targets": { "unit": 0.70, "integration": 0.30, "e2e": 0.10 },
+    "environments": [],
+    "pyramid_shape": "classic"
+  },
+  "weights": {
+    "unified": { "security": 0.55, "qa": 0.45 },
+    "security_composite": { "likelihood": 0.30, "impact": 0.40, "exposure": 0.30 },
+    "qa_composite": { "coverage_gap": 0.35, "testability": 0.30, "defect_density": 0.20, "change_velocity": 0.15 }
+  },
+  "inputs": {
+    "ndepend_export": null,
+    "db_schema_export": null,
+    "coverage_report": null,
+    "flaky_test_history": null,
+    "defect_export": null,
+    "entry_point_list": null
+  },
+  "evidence_dir": "evidence",
+  "created_at": ""
+}

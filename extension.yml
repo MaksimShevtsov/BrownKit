@@ -1,0 +1,49 @@
+schema_version: "1.0"
+
+extension:
+  id: "brownkit"
+  name: "BrownKit — Brownfield Discovery for Spec-Kit"
+  version: "0.1.0"
+  description: "Evidence-driven capability discovery, security and QA risk assessment for existing codebases."
+  author: "Kit-Kroker"
+  repository: "https://github.com/Kit-Kroker/BrownKit"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=0.1.0"
+
+provides:
+  commands:
+    - name: "speckit.brownkit.init"
+      file: "commands/init.md"
+      description: "Initialize project context, security and QA scope; create evidence tree."
+    - name: "speckit.brownkit.scan"
+      file: "commands/scan.md"
+      description: "Extract capability, security, and QA signals from code and external inputs."
+    - name: "speckit.brownkit.discover"
+      file: "commands/discover.md"
+      description: "Verify candidates; lock L1/L2 capabilities; build domain model."
+    - name: "speckit.brownkit.report"
+      file: "commands/report.md"
+      description: "Generate stakeholder, architect, dev, SDET, and (conditional) security reports."
+    - name: "speckit.brownkit.assess"
+      file: "commands/assess.md"
+      description: "Capability-aware STRIDE threat modeling plus QA risk analysis and unified scoring."
+    - name: "speckit.brownkit.generate"
+      file: "commands/generate.md"
+      description: "Produce capability-scoped AI contexts, security prompts, and spec seeds."
+    - name: "speckit.brownkit.finish"
+      file: "commands/finish.md"
+      description: "Validate acceptance criteria, persist evidence, and package per-team handoffs."
+
+config:
+  - name: "brownkit"
+    template: "config-template.yml"
+    required: false
+
+tags:
+  - "brownfield"
+  - "discovery"
+  - "security"
+  - "qa"
+  - "capabilities"
