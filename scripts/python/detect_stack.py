@@ -69,6 +69,9 @@ FRONTEND_DEPS = {
 DB_DEP_PATTERNS = [
     r"\bjdbc:",
     r"org\.hibernate",
+    r"org\.postgresql",
+    r"mysql-connector", r"mariadb-java-client",
+    r"spring-boot-starter-data-",
     r"EntityFramework",
     r"Microsoft\.EntityFrameworkCore",
     r"Dapper",
@@ -84,6 +87,8 @@ DB_DEP_PATTERNS = [
     r"diesel",
     r"sqlx",
     r"ActiveRecord",
+    r"<artifactId>(postgresql|mysql|mariadb|oracle|mongodb|h2|redis|cassandra)(?:-\w+)?</artifactId>",
+    r"\"(pg|mysql2|sqlite3|mongodb|ioredis|cassandra-driver)\"\s*:",
 ]
 
 COVERAGE_CANDIDATES = [

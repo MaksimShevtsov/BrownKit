@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd">
+<report name="brownkit-sample">
+  <sessioninfo id="sample" start="0" dump="0"/>
+
+  <package name="com/example/payments">
+    <sourcefile name="PaymentController.java">
+      <line nr="10" mi="0" ci="1"/>
+      <line nr="13" mi="0" ci="1"/>
+      <line nr="17" mi="0" ci="1"/>
+      <line nr="21" mi="1" ci="0"/>
+      <counter type="LINE" missed="1" covered="3"/>
+      <counter type="BRANCH" missed="0" covered="0"/>
+    </sourcefile>
+    <sourcefile name="PaymentService.java">
+      <line nr="7" mi="1" ci="0"/>
+      <line nr="8" mi="1" ci="0"/>
+      <line nr="12" mi="0" ci="1"/>
+      <counter type="LINE" missed="2" covered="1"/>
+      <counter type="BRANCH" missed="0" covered="0"/>
+    </sourcefile>
+    <counter type="LINE" missed="3" covered="4"/>
+  </package>
+
+  <package name="com/example/customers">
+    <sourcefile name="CustomerController.java">
+      <line nr="13" mi="1" ci="0"/>
+      <line nr="17" mi="1" ci="0"/>
+      <counter type="LINE" missed="2" covered="0"/>
+      <counter type="BRANCH" missed="0" covered="0"/>
+    </sourcefile>
+    <sourcefile name="CustomerRepository.java">
+      <line nr="5" mi="1" ci="0"/>
+      <counter type="LINE" missed="1" covered="0"/>
+      <counter type="BRANCH" missed="0" covered="0"/>
+    </sourcefile>
+    <counter type="LINE" missed="3" covered="0"/>
+  </package>
+
+  <counter type="LINE" missed="6" covered="4"/>
+</report>

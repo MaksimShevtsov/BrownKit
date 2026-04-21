@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brownkit.dev/schemas/context.schema.json",
+  "title": "BrownKit project context",
+  "description": "Written by /init. Consumed by every subsequent phase.",
+  "type": "object",
+  "required": ["schema_version", "project", "security_scope", "qa_scope", "weights", "inputs", "evidence_dir"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "project": {
+      "type": "object",
+      "required": ["codebase_path", "language", "architecture", "has_frontend"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string" },
+        "codebase_path": { "type": "string" },
+        "language": { "type": "string" },
+        "architecture": { "type": "string" },
+        "has_frontend": { "type": "boolean" },
+        "detected": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "primary_languages":  { "type": "array", "items": { "type": "string" } },
+            "build_systems":      { "type": "array", "items": { "type": "string" } },
+            "package_manifests":  { "type": "array", "items": { "type": "string" } },
+            "frameworks":         { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "security_scope": {
+      "type": "object",
+      "required": ["compliance", "threat_standard", "risk_tolerance"],
+      "additionalProperties": false,
+      "properties": {
+        "compliance":      { "type": "array", "items": { "type": "string" } },
+        "threat_standard": { "type": "string" },
+        "risk_tolerance":  { "enum": ["low", "medium", "high"] }
+      }
+    },
+    "qa_scope": {
+      "type": "object",
+      "required": ["coverage_targets", "environments"],
+      "additionalProperties": true,
+      "properties": {
+        "coverage_targets": {
+          "type": "object",
+          "required": ["unit", "integration", "e2e"],
+          "properties": {
+            "unit":        { "type": "number", "minimum": 0, "maximum": 1 },
+            "integration": { "type": "number", "minimum": 0, "maximum": 1 },
+            "e2e":         { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "environments":  { "type": "array", "items": { "type": "string" } },
+        "pyramid_shape": { "enum": ["classic", "trophy", "diamond"] }
+      }
+    },
+    "weights": {
+      "type": "object",
+      "required": ["unified", "security_composite", "qa_composite"],
+      "additionalProperties": false,
+      "properties": {
+        "unified": {
+          "type": "object",
+          "required": ["security", "qa"],
+          "properties": {
+            "security": { "type": "number", "minimum": 0, "maximum": 1 },
+            "qa":       { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "security_composite": {
+          "type": "object",
+          "required": ["likelihood", "impact", "exposure"],
+          "properties": {
+            "likelihood": { "type": "number", "minimum": 0, "maximum": 1 },
+            "impact":     { "type": "number", "minimum": 0, "maximum": 1 },
+            "exposure":   { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "qa_composite": {
+          "type": "object",
+          "required": ["coverage_gap", "testability", "defect_density", "change_velocity"],
+          "properties": {
+            "coverage_gap":    { "type": "number", "minimum": 0, "maximum": 1 },
+            "testability":     { "type": "number", "minimum": 0, "maximum": 1 },
+            "defect_density":  { "type": "number", "minimum": 0, "maximum": 1 },
+            "change_velocity": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "null"] },
+      "properties": {
+        "ndepend_export":     { "type": ["string", "null"] },
+        "db_schema_export":   { "type": ["string", "null"] },
+        "coverage_report":    { "type": ["string", "null"] },
+        "flaky_test_history": { "type": ["string", "null"] },
+        "defect_export":      { "type": ["string", "null"] },
+        "entry_point_list":   { "type": ["string", "null"] }
+      }
+    },
+    "evidence_dir": { "type": "string" },
+    "created_at":   { "type": "string" }
+  }
+}

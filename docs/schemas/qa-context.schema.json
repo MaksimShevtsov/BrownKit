@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brownkit.dev/schemas/qa-context.schema.json",
+  "title": "BrownKit per-capability QA context",
+  "description": "Written by /discover (D6a). Consumed by /assess and /report. 'not-collected' is a first-class value; never substituted with 0 or 'none'.",
+  "type": "object",
+  "required": ["schema_version", "capabilities"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "capabilities": {
+      "type": "object",
+      "patternProperties": {
+        "^BC-\\d{3}(?:-\\d{2})?$": { "$ref": "#/$defs/qa_context" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "qa_context": {
+      "type": "object",
+      "required": ["test_coverage", "automation_status", "testability", "defect_profile", "environments"],
+      "additionalProperties": true,
+      "properties": {
+        "test_coverage": {
+          "type": "object",
+          "required": ["source", "confidence"],
+          "properties": {
+            "unit":        { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "integration": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "e2e":         { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+            "source":      { "enum": ["jacoco", "cobertura", "istanbul", "gocover", "coveragepy", "coverlet", "proxy", "not-collected"] },
+            "confidence":  { "enum": ["HIGH", "MEDIUM", "LOW"] }
+          }
+        },
+        "automation_status": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "regression":  { "enum": ["full", "partial", "manual", "none", "not-collected"] },
+            "smoke":       { "enum": ["full", "partial", "manual", "none", "not-collected"] },
+            "contract":    { "enum": ["present", "absent", "not-collected"] },
+            "performance": { "enum": ["present", "absent", "not-collected"] }
+          }
+        },
+        "testability": {
+          "type": "object",
+          "required": ["rating", "findings_count"],
+          "properties": {
+            "rating":         { "enum": ["good", "impeded", "blocked", "not-collected"] },
+            "findings_count": { "type": ["integer", "null"], "minimum": 0 },
+            "top_issues":     { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "defect_profile": {
+          "type": "object",
+          "required": ["source"],
+          "properties": {
+            "open_defects":    { "type": ["integer", "null"], "minimum": 0 },
+            "flaky_tests":     { "type": ["integer", "null"], "minimum": 0 },
+            "change_velocity": { "enum": ["high", "medium", "low", "not-collected"] },
+            "source":          { "enum": ["jira", "git-log", "linear", "github-issues", "not-collected"] }
+          }
+        },
+        "environments": {
+          "type": "object",
+          "properties": {
+            "coverage":      { "type": "array", "items": { "type": "string" } },
+            "missing":       { "type": "array", "items": { "type": "string" } },
+            "parity_issues": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "test_strategy_gaps": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

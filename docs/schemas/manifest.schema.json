@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brownkit.dev/schemas/manifest.schema.json",
+  "title": "BrownKit evidence manifest",
+  "description": "Written by /finish. Machine-readable index of every artifact produced, phase status, acceptance verdict, and team bundles.",
+  "type": "object",
+  "required": ["schema_version", "generated_at", "phases", "acceptance", "teams"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "generated_at":   { "type": "string" },
+    "phases": {
+      "type": "object",
+      "required": ["init", "scan", "discover", "report", "assess", "generate", "finish"],
+      "patternProperties": {
+        "^(init|scan|discover|report|assess|generate|finish)$": {
+          "type": "object",
+          "required": ["status", "artifacts"],
+          "properties": {
+            "status":       { "enum": ["pending", "completed", "skipped"] },
+            "started_at":   { "type": ["string", "null"] },
+            "completed_at": { "type": ["string", "null"] },
+            "artifacts":    { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "acceptance": {
+      "type": "object",
+      "required": ["total", "passed", "failed"],
+      "properties": {
+        "total":   { "type": "integer", "const": 14 },
+        "passed":  { "type": "integer", "minimum": 0, "maximum": 14 },
+        "failed":  { "type": "array", "items": { "type": "integer" } },
+        "needs_review":   { "type": "array", "items": { "type": "integer" } },
+        "not_applicable": { "type": "array", "items": { "type": "integer" } }
+      }
+    },
+    "teams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "capabilities", "bundle_path"],
+        "properties": {
+          "id":           { "type": "string" },
+          "name":         { "type": "string" },
+          "capabilities": { "type": "array", "items": { "type": "string", "pattern": "^BC-\\d{3}$" } },
+          "bundle_path":  { "type": "string" }
+        }
+      }
+    }
+  }
+}

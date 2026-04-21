@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/sample
+    username: sample
+    # BROWNKIT_EXAMPLE_ONLY — intentionally naive for demo purposes; do not copy.
+    password: "hunter2-demo-not-real"
+
+logging:
+  level:
+    root: INFO

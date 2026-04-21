@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brownkit.dev/schemas/unified-risk-map.schema.json",
+  "title": "BrownKit unified risk map",
+  "description": "Written by /assess (Phase 4-6). Top-level ranked view consumed by reports, dashboards, and /generate.",
+  "type": "object",
+  "required": ["schema_version", "capabilities", "ranking"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "generated_at":   { "type": "string" },
+    "capabilities": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/capability_risk" }
+    },
+    "ranking": {
+      "description": "Capability IDs sorted DESC by unified composite; 'unknown' and 'partial' grouped at end with reason.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^BC-\\d{3}$" }
+    },
+    "cross_capability": {
+      "type": "object",
+      "properties": {
+        "ref": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "composite_numeric": {
+      "type": "number", "minimum": 0, "maximum": 1
+    },
+    "composite_sentinel": {
+      "enum": ["unknown", "partial"]
+    },
+    "drivers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": { "type": "string", "minLength": 8 }
+    },
+    "capability_risk": {
+      "type": "object",
+      "required": ["id", "name", "risk_score"],
+      "additionalProperties": true,
+      "properties": {
+        "id":   { "type": "string", "pattern": "^BC-\\d{3}$" },
+        "name": { "type": "string" },
+        "risk_score": {
+          "type": "object",
+          "required": ["security", "qa", "unified_composite", "drivers"],
+          "properties": {
+            "security": {
+              "type": "object",
+              "required": ["likelihood", "impact", "exposure", "composite"],
+              "properties": {
+                "likelihood": { "$ref": "#/$defs/composite_numeric" },
+                "impact":     { "$ref": "#/$defs/composite_numeric" },
+                "exposure":   { "$ref": "#/$defs/composite_numeric" },
+                "composite":  { "$ref": "#/$defs/composite_numeric" }
+              }
+            },
+            "qa": {
+              "type": "object",
+              "required": ["composite"],
+              "properties": {
+                "coverage_gap":    { "oneOf": [{ "$ref": "#/$defs/composite_numeric" }, { "type": "null" }] },
+                "testability":     { "oneOf": [{ "$ref": "#/$defs/composite_numeric" }, { "type": "null" }] },
+                "defect_density":  { "oneOf": [{ "$ref": "#/$defs/composite_numeric" }, { "type": "null" }] },
+                "change_velocity": { "$ref": "#/$defs/composite_numeric" },
+                "composite": {
+                  "oneOf": [
+                    { "$ref": "#/$defs/composite_numeric" },
+                    { "const": "unknown" }
+                  ]
+                }
+              }
+            },
+            "unified_composite": {
+              "oneOf": [
+                { "$ref": "#/$defs/composite_numeric" },
+                { "$ref": "#/$defs/composite_sentinel" }
+              ]
+            },
+            "drivers": { "$ref": "#/$defs/drivers" }
+          }
+        }
+      }
+    }
+  }
+}

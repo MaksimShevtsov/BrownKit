@@ -1,0 +1,7 @@
+pipeline {
+  agent any
+  stages {
+    stage('build') { steps { sh 'mvn -B verify' } }
+    stage('coverage') { steps { sh 'mvn -B jacoco:report' } }
+  }
+}
