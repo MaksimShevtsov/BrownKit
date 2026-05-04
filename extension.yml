@@ -36,6 +36,12 @@ provides:
       file: "commands/finish.md"
       description: "Validate acceptance criteria, persist evidence, and package per-team handoffs."
 
+hooks:
+  before_constitution:
+    command: "speckit.brownkit.generate"
+    optional: true
+    prompt: "Run BrownKit generate to prepare capability contexts first?"
+
 config:
   - name: "brownkit"
     template: "config-template.yml"

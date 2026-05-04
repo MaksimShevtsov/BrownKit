@@ -26,8 +26,6 @@ modernization planning, AI-assisted refactoring, and per-team handoff.
 ## Install
 
 ```bash
-specify extension add brownkit
-# or from a release archive:
 specify extension add brownkit --from https://github.com/Kit-Kroker/BrownKit/archive/refs/tags/v0.1.0.zip
 ```
 
