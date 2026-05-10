@@ -45,13 +45,13 @@ specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit
 
 ## Update
 
-Replace the version tag with the release you want to move to:
+The `specify extension update` command does not support external URLs, so updating requires a remove + re-add:
 
 ```bash
-specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v<NEW_VERSION>.zip
+specify extension remove brownkit && specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v<NEW_VERSION>.zip
 ```
 
-Check [`CHANGELOG.md`](CHANGELOG.md) for what changed between versions before updating.
+Replace `<NEW_VERSION>` with the target version (e.g. `v1.1.0`). Check [`CHANGELOG.md`](CHANGELOG.md) for what changed between versions before updating.
 
 ## Configure
 
