@@ -75,7 +75,7 @@ array sorted alphabetically by `id`:
   "repository": "https://github.com/MaksimShevtsov/BrownKit",
   "commit": "<full-sha-from-step-1>",
   "version": "1.0.0",
-  "author": "Kit-Kroker",
+  "author": "Maksim Shautsou",
   "license": "MIT",
   "tags": ["brownfield", "discovery", "security", "qa", "capabilities"]
 }
