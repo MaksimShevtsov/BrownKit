@@ -35,8 +35,8 @@ From the BrownKit working tree:
 
 ```bash
 git add -A
-git commit -m "release: v0.1.0"
-git tag -a v0.1.0 -m "BrownKit v0.1.0 — initial release"
+git commit -m "release: v1.0.0"
+git tag -a v1.0.0 -m "BrownKit v1.0.0 — initial release"
 # Push when a remote is configured:
 # git push origin main --tags
 ```
@@ -72,9 +72,9 @@ array sorted alphabetically by `id`:
   "id": "brownkit",
   "name": "BrownKit — Brownfield Discovery",
   "description": "Evidence-driven capability discovery, security and QA risk assessment for existing codebases.",
-  "repository": "https://github.com/Kit-Kroker/BrownKit",
+  "repository": "https://github.com/MaksimShevtsov/BrownKit",
   "commit": "<full-sha-from-step-1>",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": "Kit-Kroker",
   "license": "MIT",
   "tags": ["brownfield", "discovery", "security", "qa", "capabilities"]
@@ -93,7 +93,7 @@ extensions table — verify the current path in the publishing guide). Add a
 row, alphabetically by name:
 
 ```markdown
-| [BrownKit](https://github.com/Kit-Kroker/BrownKit) | Evidence-driven capability discovery, security and QA risk assessment for existing codebases. | MIT |
+| [BrownKit](https://github.com/MaksimShevtsov/BrownKit) | Evidence-driven capability discovery, security and QA risk assessment for existing codebases. | MIT |
 ```
 
 ---
@@ -122,7 +122,7 @@ git push -u origin add-brownkit-extension
 gh pr create --title "Add BrownKit extension to community catalog" \
   --body "$(cat <<'EOF'
 ## Summary
-Registers [BrownKit](https://github.com/Kit-Kroker/BrownKit) v0.1.0 in the
+Registers [BrownKit](https://github.com/MaksimShevtsov/BrownKit) v1.0.0 in the
 community extensions catalog. BrownKit packages an evidence-driven
 brownfield discovery methodology (EDCR) as seven `speckit.brownkit.*`
 commands.

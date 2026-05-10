@@ -23,11 +23,35 @@ modernization planning, AI-assisted refactoring, and per-team handoff.
 | `speckit.brownkit.generate` | Capability-scoped AI contexts, security prompts, spec seeds. |
 | `speckit.brownkit.finish`   | Validate acceptance criteria and package per-team handoffs. |
 
+## Hooks
+
+Three read-only commands plug into the spec-kit workflow without re-running
+analysis. They read existing evidence and surface the relevant slice.
+
+| Command | Fires | Purpose |
+| --- | --- | --- |
+| `speckit.brownkit.enrich`   | before specify / clarify | Surface matching L1/L2 capabilities and spec seeds for the feature in scope. |
+| `speckit.brownkit.gate`     | before implement         | Check open STRIDE threats and QA risk score; warn or block if risks are unaccepted. |
+| `speckit.brownkit.validate` | after implement          | Verify the delivered implementation against spec seed commitments, security constraints, and QA targets. |
+
+All three hooks are optional and prompt before running. Pass `--strict` to any
+of them to treat unresolved findings as a hard stop.
+
 ## Install
 
 ```bash
-specify extension add brownkit --from https://github.com/Kit-Kroker/BrownKit/archive/refs/tags/v0.1.0.zip
+specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v1.0.0.zip
 ```
+
+## Update
+
+Replace the version tag with the release you want to move to:
+
+```bash
+specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v<NEW_VERSION>.zip
+```
+
+Check [`CHANGELOG.md`](CHANGELOG.md) for what changed between versions before updating.
 
 ## Configure
 

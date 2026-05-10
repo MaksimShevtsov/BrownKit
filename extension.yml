@@ -3,11 +3,13 @@ schema_version: "1.0"
 extension:
   id: "brownkit"
   name: "BrownKit — Brownfield Discovery for Spec-Kit"
-  version: "0.1.0"
+  version: "1.0.0"
   description: "Evidence-driven capability discovery, security and QA risk assessment for existing codebases."
-  author: "Kit-Kroker"
-  repository: "https://github.com/Kit-Kroker/BrownKit"
+  author: "Maksim Shautsou"
+  repository: "https://github.com/MaksimShevtsov/BrownKit"
+  homepage: "https://github.com/MaksimShevtsov/BrownKit/blob/main/README.md"
   license: "MIT"
+  changelog: "https://github.com/MaksimShevtsov/BrownKit/blob/main/CHANGELOG.md"
 
 requires:
   speckit_version: ">=0.1.0"
@@ -44,6 +46,83 @@ provides:
     - name: "speckit.brownkit.validate"
       file: "commands/validate.md"
       description: "Check acceptance criteria against the evidence tree for the capability delivered."
+  config:
+    - name: "brownkit-config.yml"
+      template: "config-template.yml"
+      description: "BrownKit project, security scope, QA scope, and scoring weights configuration."
+      required: false
+
+config_schema:
+  type: "object"
+  properties:
+    project:
+      type: "object"
+      properties:
+        codebase_path:
+          type: "string"
+        language:
+          type: "string"
+        architecture:
+          type: "string"
+        has_frontend:
+          type: "boolean"
+    security_scope:
+      type: "object"
+      properties:
+        compliance:
+          type: "array"
+          items:
+            type: "string"
+        threat_standard:
+          type: "string"
+        risk_tolerance:
+          type: "string"
+          enum: ["low", "medium", "high"]
+    qa_scope:
+      type: "object"
+      properties:
+        coverage_targets:
+          type: "object"
+          properties:
+            unit:
+              type: "number"
+              minimum: 0
+              maximum: 1
+            integration:
+              type: "number"
+              minimum: 0
+              maximum: 1
+            e2e:
+              type: "number"
+              minimum: 0
+              maximum: 1
+        environments:
+          type: "array"
+          items:
+            type: "string"
+        pyramid_shape:
+          type: "string"
+          enum: ["classic", "trophy", "diamond"]
+    weights:
+      type: "object"
+      properties:
+        unified:
+          type: "object"
+          properties:
+            security:
+              type: "number"
+              minimum: 0
+              maximum: 1
+            qa:
+              type: "number"
+              minimum: 0
+              maximum: 1
+    evidence_dir:
+      type: "string"
+
+support:
+  documentation: "https://github.com/MaksimShevtsov/BrownKit/blob/main/README.md"
+  issues: "https://github.com/MaksimShevtsov/BrownKit/issues"
 
 hooks:
   before_specify:
@@ -71,11 +150,6 @@ hooks:
     optional: true
     prompt: "Run BrownKit generate to prepare capability contexts first?"
     description: "Prepares capability-scoped AI contexts and spec seeds before constitution update."
-
-config:
-  - name: "brownkit"
-    template: "config-template.yml"
-    required: false
 
 tags:
   - "brownfield"

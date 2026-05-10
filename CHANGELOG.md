@@ -6,14 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-05-10
+
 ### Added
-- Initial scaffolding: `extension.yml`, `config-template.yml`, LICENSE, README.
-- All seven commands: init, scan, discover, report, assess, generate, finish.
+- Initial release of the EDCR brownfield pipeline as a spec-kit extension.
+- All ten commands: init, scan, discover, report, assess, generate, finish, enrich, gate, validate.
 - Methodology write-up and per-phase docs under `docs/`.
 - Helper scripts under `scripts/` — Python core with bash + PowerShell shims:
   `detect-stack`, `list-manifests`, `parse-coverage`, `find-secrets`,
   `git-churn`, `validate-evidence`.
-
-## [0.1.0] - TBD
-
-- First preview release of the EDCR brownfield pipeline as a spec-kit extension.
+- Five lifecycle hooks: `before_specify`, `before_clarify`, `before_implement`,
+  `after_implement`, `before_constitution`.
+- `config_schema` for validation of `brownkit-config.yml`.
+- `support` and `homepage` metadata for catalog discoverability.
