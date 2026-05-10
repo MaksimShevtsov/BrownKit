@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-05-10
+
+### Fixed
+- Removed `extension.changelog` and `support` block from `extension.yml` — neither
+  field is in the spec-kit extension schema, making the v1.0.0 manifest non-compliant
+  with the Extension Development Guide.
+
 ## [1.0.0] - 2026-05-10
 
 ### Added

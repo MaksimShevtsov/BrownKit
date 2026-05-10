@@ -6,14 +6,14 @@ users can install it with `specify extension install brownkit`.
 
 The steps follow the canonical
 [`extensions/EXTENSION-PUBLISHING-GUIDE.md`](https://github.com/github/spec-kit/blob/main/extensions/EXTENSION-PUBLISHING-GUIDE.md)
-in the spec-kit repo. Re-read that guide before opening a PR in case the
-schema has changed since this document was written.
+in the spec-kit repo. Re-read that guide before submitting in case the
+process has changed since this document was written.
 
 ---
 
 ## 0. Pre-flight checklist
 
-Before touching spec-kit, verify BrownKit itself is release-ready.
+Before submitting, verify BrownKit itself is release-ready.
 
 - [ ] `extension.yml` — `version` matches the tag you're about to cut
 - [ ] `README.md` — install snippet points at the correct repo URL
@@ -21,148 +21,126 @@ Before touching spec-kit, verify BrownKit itself is release-ready.
 - [ ] `LICENSE` — present (MIT)
 - [ ] Command names match `^speckit\.brownkit\.[a-z0-9-]+$`
 - [ ] Every command file referenced from `extension.yml` exists
-- [ ] Every `scripts.sh` / `scripts.ps` path referenced from command
-      frontmatter exists and is executable (`chmod +x scripts/bash/*.sh`)
-- [ ] Helpers produce valid JSON against `docs/schemas/*.schema.json`
-- [ ] Example fixture under `docs/examples/sample-repo/` still exercises
-      detect-stack, list-manifests, parse-coverage, find-secrets end-to-end
+- [ ] Every bash shim in `scripts/bash/` is executable (`chmod +x scripts/bash/*.sh`)
+- [ ] `extension.yml` contains only fields documented in the Extension Development
+      Guide — no `extension.changelog`, `support`, or other undocumented keys
 
 ---
 
-## 1. Cut the release tag
+## 1. Cut the release tag and GitHub release
 
 From the BrownKit working tree:
 
 ```bash
-git add -A
-git commit -m "release: v1.0.0"
-git tag -a v1.0.0 -m "BrownKit v1.0.0 — initial release"
-# Push when a remote is configured:
-# git push origin main --tags
+git add extension.yml CHANGELOG.md
+git commit -m "release: vX.Y.Z"
+git tag -a vX.Y.Z -m "BrownKit vX.Y.Z"
+git push origin main --tags
 ```
 
-GitHub will surface the tag as a release once the repo has a remote. The
-catalog entry pins to a commit SHA, so the tag is primarily for humans.
-
-Record the commit SHA you want the catalog to pin to:
+Then create the GitHub release so the archive URL is live:
 
 ```bash
-git rev-parse HEAD
+gh release create vX.Y.Z \
+  --title "vX.Y.Z" \
+  --notes "See CHANGELOG.md for details."
+```
+
+The download URL that goes in the catalog entry is:
+
+```
+https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/vX.Y.Z.zip
+```
+
+Test that the URL resolves before submitting:
+
+```bash
+curl -sI https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/vX.Y.Z.zip \
+  | grep -i location
 ```
 
 ---
 
-## 2. Fork and clone spec-kit
+## 2. Submit via the Extension Submission issue template
 
-```bash
-gh repo fork github/spec-kit --clone --remote
-cd spec-kit
-git checkout -b add-brownkit-extension
-```
+> [!IMPORTANT]
+> Do **not** open a pull request directly against `extensions/catalog.community.json`.
+> All submissions must go through the issue template.
 
----
+Open the **[Extension Submission](https://github.com/github/spec-kit/issues/new?template=extension_submission.yml)**
+template and fill in the fields below.
 
-## 3. Register in `catalog.community.json`
+### Catalog entry values for BrownKit
 
-Edit `extensions/catalog.community.json`. Add a new entry, keeping the
-array sorted alphabetically by `id`:
+| Field | Value |
+|---|---|
+| **id** | `brownkit` |
+| **name** | `BrownKit — Brownfield Discovery for Spec-Kit` |
+| **description** | `Evidence-driven capability discovery, security and QA risk assessment for existing codebases.` |
+| **author** | `Maksim Shautsou` |
+| **version** | *(current release, e.g. `1.0.1`)* |
+| **download_url** | `https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/vX.Y.Z.zip` |
+| **repository** | `https://github.com/MaksimShevtsov/BrownKit` |
+| **homepage** | `https://github.com/MaksimShevtsov/BrownKit/blob/main/README.md` |
+| **documentation** | `https://github.com/MaksimShevtsov/BrownKit/blob/main/README.md` |
+| **changelog** | `https://github.com/MaksimShevtsov/BrownKit/blob/main/CHANGELOG.md` |
+| **license** | `MIT` |
+| **requires.speckit_version** | `>=0.1.0` |
+| **provides.commands** | `10` |
+| **provides.hooks** | `5` |
+| **tags** | `brownfield`, `discovery`, `security`, `qa`, `capabilities` |
+
+The full catalog entry JSON (for reference — maintainers write this):
 
 ```json
 {
   "id": "brownkit",
-  "name": "BrownKit — Brownfield Discovery",
+  "name": "BrownKit — Brownfield Discovery for Spec-Kit",
   "description": "Evidence-driven capability discovery, security and QA risk assessment for existing codebases.",
-  "repository": "https://github.com/MaksimShevtsov/BrownKit",
-  "commit": "<full-sha-from-step-1>",
-  "version": "1.0.0",
   "author": "Maksim Shautsou",
+  "version": "1.0.1",
+  "download_url": "https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v1.0.1.zip",
+  "repository": "https://github.com/MaksimShevtsov/BrownKit",
+  "homepage": "https://github.com/MaksimShevtsov/BrownKit/blob/main/README.md",
+  "documentation": "https://github.com/MaksimShevtsov/BrownKit/blob/main/README.md",
+  "changelog": "https://github.com/MaksimShevtsov/BrownKit/blob/main/CHANGELOG.md",
   "license": "MIT",
+  "requires": {
+    "speckit_version": ">=0.1.0"
+  },
+  "provides": {
+    "commands": 10,
+    "hooks": 5
+  },
   "tags": ["brownfield", "discovery", "security", "qa", "capabilities"]
 }
 ```
 
-Replace `<full-sha-from-step-1>` with the 40-char SHA. The catalog never
-pins to a branch name or tag — always a commit.
+---
+
+## 3. After approval
+
+Once a maintainer approves and merges the catalog entry:
+
+1. Announce the release (link the CHANGELOG entry, describe what problem BrownKit solves).
+2. Monitor the BrownKit issue tracker for install or compatibility reports.
 
 ---
 
-## 4. Update the community README
+## 4. Releasing future versions
 
-Edit `extensions/README.md` (or whichever file holds the community
-extensions table — verify the current path in the publishing guide). Add a
-row, alphabetically by name:
-
-```markdown
-| [BrownKit](https://github.com/MaksimShevtsov/BrownKit) | Evidence-driven capability discovery, security and QA risk assessment for existing codebases. | MIT |
-```
-
----
-
-## 5. Validate locally
-
-spec-kit ships a catalog validator. From the spec-kit repo root:
-
-```bash
-# Whatever the guide prescribes — commonly:
-npm install
-npm run validate:catalog
-# or: python -m speckit.tools.validate_catalog extensions/catalog.community.json
-```
-
-Fix any schema errors before opening the PR.
-
----
-
-## 6. Open the PR
-
-```bash
-git add extensions/catalog.community.json extensions/README.md
-git commit -m "Add BrownKit extension to community catalog"
-git push -u origin add-brownkit-extension
-gh pr create --title "Add BrownKit extension to community catalog" \
-  --body "$(cat <<'EOF'
-## Summary
-Registers [BrownKit](https://github.com/MaksimShevtsov/BrownKit) v1.0.0 in the
-community extensions catalog. BrownKit packages an evidence-driven
-brownfield discovery methodology (EDCR) as seven `speckit.brownkit.*`
-commands.
-
-## Commands provided
-- speckit.brownkit.init
-- speckit.brownkit.scan
-- speckit.brownkit.discover
-- speckit.brownkit.report
-- speckit.brownkit.assess
-- speckit.brownkit.generate
-- speckit.brownkit.finish
-
-## Validation
-- [x] Catalog schema validator passes locally
-- [x] All referenced command files exist at pinned SHA
-- [x] Command names match `^speckit\.brownkit\.[a-z0-9-]+$`
-- [x] MIT-licensed, repository public
-EOF
-)"
-```
-
----
-
-## 7. After merge
-
-Once the spec-kit PR lands:
-
-1. Announce the release (CHANGELOG link, a short post describing what
-   problem BrownKit solves).
-2. Monitor issues on the BrownKit repo for install/compat reports.
-3. For future releases: bump `version` in `extension.yml` and
-   `CHANGELOG.md`, cut a new tag, then open a follow-up PR against
-   `catalog.community.json` updating only the `commit` and `version`
-   fields.
+1. Bump `version` in `extension.yml`.
+2. Add an entry to `CHANGELOG.md`.
+3. Commit, tag, push, and create a GitHub release (Step 1 above).
+4. File a new **[Extension Submission](https://github.com/github/spec-kit/issues/new?template=extension_submission.yml)**
+   issue with the updated `version` and `download_url`. Mention in the issue
+   body that this is an update to an existing entry.
 
 ---
 
 ## Reference URLs
 
 - Publishing guide: https://github.com/github/spec-kit/blob/main/extensions/EXTENSION-PUBLISHING-GUIDE.md
+- Extension Submission template: https://github.com/github/spec-kit/issues/new?template=extension_submission.yml
 - Catalog file: https://github.com/github/spec-kit/blob/main/extensions/catalog.community.json
 - Community extensions index: https://github.com/github/spec-kit/tree/main/extensions
