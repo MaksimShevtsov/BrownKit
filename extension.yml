@@ -9,7 +9,6 @@ extension:
   repository: "https://github.com/MaksimShevtsov/BrownKit"
   homepage: "https://github.com/MaksimShevtsov/BrownKit/blob/main/README.md"
   license: "MIT"
-  changelog: "https://github.com/MaksimShevtsov/BrownKit/blob/main/CHANGELOG.md"
 
 requires:
   speckit_version: ">=0.1.0"
@@ -119,10 +118,6 @@ config_schema:
               maximum: 1
     evidence_dir:
       type: "string"
-
-support:
-  documentation: "https://github.com/MaksimShevtsov/BrownKit/blob/main/README.md"
-  issues: "https://github.com/MaksimShevtsov/BrownKit/issues"
 
 hooks:
   before_specify:
