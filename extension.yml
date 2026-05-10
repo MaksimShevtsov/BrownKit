@@ -35,12 +35,42 @@ provides:
     - name: "speckit.brownkit.finish"
       file: "commands/finish.md"
       description: "Validate acceptance criteria, persist evidence, and package per-team handoffs."
+    - name: "speckit.brownkit.enrich"
+      file: "commands/enrich.md"
+      description: "Surface relevant L1/L2 capabilities and spec seeds from existing evidence for the feature in scope."
+    - name: "speckit.brownkit.gate"
+      file: "commands/gate.md"
+      description: "Check open STRIDE threats and QA risk score for the capability being implemented; raise warnings before proceeding."
+    - name: "speckit.brownkit.validate"
+      file: "commands/validate.md"
+      description: "Check acceptance criteria against the evidence tree for the capability delivered."
 
 hooks:
+  before_specify:
+    command: "speckit.brownkit.enrich"
+    optional: true
+    prompt: "Run BrownKit enrich to surface relevant capabilities and spec seeds for this feature?"
+    description: "Injects capability context from existing evidence into the new specification."
+  before_clarify:
+    command: "speckit.brownkit.enrich"
+    optional: true
+    prompt: "Run BrownKit enrich to surface relevant capabilities before clarifying this spec?"
+    description: "Grounds spec clarification in the verified capability model."
+  before_implement:
+    command: "speckit.brownkit.gate"
+    optional: true
+    prompt: "Run BrownKit gate to check security threats and QA risk before implementing?"
+    description: "Gates implementation on open STRIDE threats and QA risk score from prior assessment."
+  after_implement:
+    command: "speckit.brownkit.validate"
+    optional: true
+    prompt: "Run BrownKit validate to check acceptance criteria against the evidence tree?"
+    description: "Lightweight AC check against the capability evidence — no full packaging or handoff."
   before_constitution:
     command: "speckit.brownkit.generate"
     optional: true
     prompt: "Run BrownKit generate to prepare capability contexts first?"
+    description: "Prepares capability-scoped AI contexts and spec seeds before constitution update."
 
 config:
   - name: "brownkit"
