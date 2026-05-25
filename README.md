@@ -40,7 +40,7 @@ of them to treat unresolved findings as a hard stop.
 ## Install
 
 ```bash
-specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v1.0.1.zip
+specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v1.0.2.zip
 ```
 
 ## Update
