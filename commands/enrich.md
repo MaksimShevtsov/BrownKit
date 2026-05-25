@@ -64,6 +64,54 @@ to the feature.
 
 ---
 
+# Phase 1b — Spec Questions
+
+Before assembling context, identify any open questions that would materially
+affect what the spec should contain. Collect questions from these sources:
+
+1. **Feature interpretation** — if the feature description is ambiguous
+   (e.g., "payment retry" could mean auto-retry, manual retry, or both),
+   identify the distinct interpretations.
+2. **FLAG items** — any unresolved FLAG items in `domain-model.md`,
+   `l1-capabilities.md`, or `l2-capabilities.md` that directly touch the
+   matched capability and could change spec scope or entity ownership.
+3. **Cross-capability ambiguity** — if the feature spans two matched
+   capabilities, questions about which capability should own new entities or
+   operations introduced by the feature.
+4. **Spec seed open questions** — if `generate_done`, open questions in
+   `§8 Open Questions / Flags` of the seed that are relevant to this feature.
+
+If **any** such questions exist:
+
+- Present each question in a numbered list with 2–4 concrete answer options
+  (not open-ended). Mark the option you recommend with `(recommended)`.
+- Ask the user to confirm or select before proceeding. Use this format:
+
+```
+## Spec Questions — {Feature Description}
+
+Before enriching, I need your input on {N} question(s) that will shape the spec:
+
+1. {Question text}
+   a) {Option A} (recommended)
+   b) {Option B}
+   c) {Option C}
+
+2. {Question text}
+   a) {Option A}
+   b) {Option B} (recommended)
+
+Please reply with your selections (e.g., "1a, 2b") to proceed with enrichment.
+```
+
+- **Wait for user confirmation** before continuing to Phase 2.
+- Record the selected answers; use them to scope Phase 2 context assembly
+  and the Phase 3 spec seed highlights accordingly.
+
+If **no** questions exist, proceed directly to Phase 2 without prompting.
+
+---
+
 # Phase 2 — Context Assembly
 
 For each matched capability, assemble a context slice from available evidence:
@@ -255,14 +303,16 @@ crossings.
 
 1. At least one capability is matched and confirmed (or user-confirmed when
    ambiguous).
-2. Context is scoped to the feature — no capability-irrelevant material is
+2. If spec questions were identified in Phase 1b, user confirmation was
+   received and recorded before Phase 2 began; answers shaped the output.
+3. Context is scoped to the feature — no capability-irrelevant material is
    included.
-3. All sections dependent on optional artifacts (`analysis_done`,
+4. All sections dependent on optional artifacts (`analysis_done`,
    `blueprint_done`, `coverage_done`, `qa_context_done`, `assess_done`,
    `generate_done`) are either populated or explicitly omitted with a one-line
    note — never silently skipped.
-4. Any `LOW` cohesion, `UNCLEAR` boundary, `dead_code`, or `orphan` finding
+5. Any `LOW` cohesion, `UNCLEAR` boundary, `dead_code`, or `orphan` finding
    that touches the feature is surfaced, not buried.
-5. Blast radius is always present when cross-capability dependency edges exist
+6. Blast radius is always present when cross-capability dependency edges exist
    in `domain-model.md` — even if it is a one-line "no dependents".
-6. No files are written to the evidence tree.
+7. No files are written to the evidence tree.
