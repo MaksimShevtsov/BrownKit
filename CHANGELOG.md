@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-05-25
+
+### Changed
+- `/enrich` command now surfaces open questions about the specification before
+  assembling context (Phase 1b). When ambiguities exist — feature interpretation,
+  unresolved FLAG items, cross-capability ownership, or spec seed open questions —
+  the agent presents numbered options with a recommended choice and waits for user
+  confirmation before proceeding to Phase 2.
+
 ## [1.0.1] - 2026-05-10
 
 ### Fixed
