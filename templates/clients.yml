@@ -25,12 +25,9 @@ clients:
     extra_frontmatter:
       - when_to_use
       - argument-hint
-      - arguments
       - allowed-tools
       - disable-model-invocation
       - user-invocable
-      - context
-      - paths
     hooks: ".claude/settings.json#hooks"
     hooks_mode: merge
 

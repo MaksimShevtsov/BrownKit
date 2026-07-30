@@ -67,7 +67,7 @@ resolve all choices.
 ask which items to include:
 
 ```
-Which artifacts should /generate produce?
+Which artifacts should /scaffold produce?
 
 Instructions:
   [x] Project instructions   (AI project brief: stack, paths, conventions, workflow)
@@ -359,15 +359,11 @@ Keep the instructions file under 120 lines. Reference `domain-model.md`
 for deeper entity detail rather than repeating it inline.
 
 When writing client copies in Phase 4, the generator for each client
-places this file at the correct native path:
-
-| Client | Instructions path |
-|---|---|
-| `claude` / `claude-code` | Prepend a `# {Project Name}` section to `.claude/CLAUDE.md` (create if absent) |
-| `copilot` | `.github/copilot-instructions.md` |
-| `gemini` | `.gemini/GEMINI.md` (create if absent) |
-| `opencode` | Prepend to `AGENTS.md` or create `.opencode/AGENTS.md` |
-| `agy` | `.agents/AGENTS.md` (create if absent) |
+places this file at the native path its `templates/clients.yml` entry
+declares: `instructions_path` gives the location; `instructions_mode`
+governs how it is written — `write` creates or overwrites the file;
+`prepend-section` inserts a `# {Project Name}` section at the top of an
+existing file and never overwrites it (recorded in `merged`, per Phase 4).
 
 ## Dev prompts (Phase 3)
 
@@ -392,14 +388,11 @@ Each prompt must:
 | `review-changes` | Review a diff against the capability evidence boundary | `files.txt` for affected capability, `domain-model.md` |
 | `review-security` | Security-focused diff review (opt-in, `assess_done` only) | `security-brief.md`, `vulnerabilities/catalog.json` |
 
-Client-native prompt paths per client type:
-
-| Client | Prompt path |
-|---|---|
-| `claude` / `claude-code` | `.claude/skills/{name}/SKILL.md` with `disable-model-invocation: true` |
-| `copilot` | `.github/prompts/{name}.prompt.md` |
-| `gemini` | `.gemini/skills/{name}/SKILL.md` |
-| `opencode` | `.opencode/skills/{name}/SKILL.md` |
+Client-native prompt paths are resolved from each client's `prompts_path` in
+`templates/clients.yml`. When a client's entry omits `prompts_path`, it has
+no separate prompt location — the prompt is delivered as an ordinary skill
+copy at that client's `skills_path` instead, with `disable-model-invocation:
+true` set per the `claude` rule above.
 
 ## Hooks (Phase 3)
 
@@ -414,16 +407,10 @@ client's native hook location during Phase 4.
 | `pre-tool-use` | Before destructive Bash commands | Warn before `rm`, `drop table`, force-push, etc. | Warning message asking the agent to confirm |
 | `post-tool-use` | After file-write tools (Edit, Write) | Run linter + test runner on changed files | Lint + test command from `context.json → tools` |
 
-Client-native hook paths:
-
-| Client | Hook path |
-|---|---|
-| `claude` / `claude-code` | `.claude/settings.json → hooks` (merge, do not overwrite) |
-| `copilot` / VS Code | `.vscode/settings.json → github.copilot.chat.agent.thinkingTool` / extension hooks |
-| `gemini` | `.gemini/settings.json → hooks` (if supported) |
-
-If the client does not support hooks natively, skip that hook for that
-client and note it in the summary.
+Client-native hook paths are resolved from each client's `hooks` and
+`hooks_mode` in `templates/clients.yml` — always `merge`, never overwrite
+the target file. Clients with no `hooks` entry do not support hook
+installation: skip that client for every hook and note it in the summary.
 
 # Part E — Subagents and Project Agent
 
@@ -549,7 +536,12 @@ Load `templates/clients.yml`. For each selected client, resolve its entry
 3. Add the client's `extra_frontmatter` fields. For `claude`, populate
    `allowed-tools` per the table below; for `opencode`, set
    `compatibility: opencode`; for `cursor`, set `globs` and `alwaysApply`.
-4. Record every written path in the run manifest's `written` list, tagged
+4. Transform to the client's `format`. `skill-md` copies the body as-is.
+   `agent-md` (copilot) drops the `metadata` block and emits a paired
+   `.prompt.md` at the client's `prompts_path`. `mdc` (cursor) is not
+   SKILL.md-shaped: emit a single `.mdc` file with `globs` and
+   `alwaysApply` frontmatter and the body beneath.
+5. Record every written path in the run manifest's `written` list, tagged
    with the client id.
 
 For `instructions_mode: prepend-section`, insert a `# {Project Name}`
@@ -557,6 +549,22 @@ section at the top of the existing file and record the path in `merged`,
 not `written` — BrownKit does not own `CLAUDE.md` or `AGENTS.md`. Same for
 any `hooks` target: merge the `hooks` key, never overwrite the file, and
 record it in `merged`.
+
+### Claude Code / claude — extra frontmatter
+
+When `claude` or `claude-code` is in `templates/clients.yml`, every skill
+copy at `.claude/skills/{name}/SKILL.md` must add these fields:
+
+| Field | Rule |
+|---|---|
+| `when_to_use` | One sentence of additional trigger keywords: verbs the user might say (e.g., "Use when asked to add, create, scaffold, or refactor…"). |
+| `argument-hint` | Short autocomplete placeholder: `[BC-NNN]`, `[capability-slug]`, etc. Use `""` for skills that take no arguments. |
+| `disable-model-invocation` | `true` for side-effect skills (migrations, deployments). `false` for all other BrownKit skills. |
+| `user-invocable` | `true` (default) for all BrownKit skills. |
+| `allowed-tools` | See table below. |
+
+**`allowed-tools` per skill type** (Claude Code syntax — space-separated; each
+`Bash(…)` entry uses glob-style patterns):
 
 | Skill | `allowed-tools` base value |
 |---|---|
