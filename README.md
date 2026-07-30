@@ -37,9 +37,10 @@ under `evidence/`. All five are optional and prompt before running.
 | `speckit.brownkit.enrich`   | before specify / clarify | Surface matching L1/L2 capabilities and spec seeds for the feature in scope. |
 | `speckit.brownkit.gate`     | before implement         | Check open STRIDE threats and QA risk score; warn or block if risks are unaccepted. |
 | `speckit.brownkit.validate` | after implement          | Verify the delivered implementation against spec seed commitments, security constraints, and QA targets. |
+| `speckit.brownkit.generate` | before constitution      | Prepare capability-scoped AI contexts and spec seeds before a constitution update. Writes under `evidence/`. |
 
-All three hooks are optional and prompt before running. Pass `--strict` to any
-of them to treat unresolved findings as a hard stop.
+Pass `--strict` to `enrich`, `gate`, or `validate` to treat unresolved
+findings as a hard stop.
 
 ## Install
 
@@ -77,7 +78,7 @@ evidence/
 ├── risk/        unified-risk-map
 ├── reports/     stakeholder, architect, dev, sdet, (security)
 ├── generate/    capability-contexts/, spec-seeds/, handoff/<team>/
-└── scaffold/   run-manifest, client-integrations, instructions, prompts/, hooks/
+└── scaffold/    run-manifest, client-integrations, instructions, prompts/, hooks/
 ```
 
 ## Methodology
