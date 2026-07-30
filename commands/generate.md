@@ -627,7 +627,7 @@ Body must include:
 2. **Cross-capability contracts** — interface rules between capabilities
    (derived from D3 L2 decomposition and any `FLAG` items in `domain-model.md`).
 3. **Compliance constraints** — data-sensitivity and regulatory rules from
-   `context.json → security_context.compliance_targets`.
+   `context.json → security_scope.compliance`.
 4. **Forbidden patterns** — anti-patterns observed in the codebase (from
    QA and security findings) that must not be introduced in new code.
 
@@ -717,7 +717,7 @@ client-specific installers copy to the correct location (e.g.,
 
 Must include, all derived from evidence — no invented values:
 
-1. **Project name and domain** (from `context.json → project_name` /
+1. **Project name and domain** (from `context.json → project.name` /
    domain model summary).
 2. **Tech stack** — language, backend, frontend, database, package manager
    (from `context.json → stack`).
@@ -731,7 +731,7 @@ Must include, all derived from evidence — no invented values:
 7. **Conventions** — naming patterns observed in the codebase; do not
    invent — derive from existing file and symbol names.
 8. **Security constraints** — data-sensitivity tags and compliance targets
-   (from `context.json → security_context`); emit only if non-empty.
+   (from `context.json → security_scope.compliance`); emit only if non-empty.
 
 Keep the instructions file under 120 lines. Reference `domain-model.md`
 for deeper entity detail rather than repeating it inline.
