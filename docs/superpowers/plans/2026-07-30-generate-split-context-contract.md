@@ -325,9 +325,17 @@ class SchemaDeclaresNewBlocks(unittest.TestCase):
                              f"{name} must stay optional so v1.0.2 trees validate")
 
     def test_tools_entries_carry_provenance(self):
+        """test_runner is declared as a $ref, so deref before inspecting."""
         entry = SCHEMA["properties"]["tools"]["properties"]["test_runner"]
+        self.assertEqual(entry["$ref"], "#/$defs/tool")
+        tool = SCHEMA["$defs"]["tool"]
         for field in ("command", "source", "confidence"):
-            self.assertIn(field, entry["properties"])
+            self.assertIn(field, tool["properties"])
+
+    def test_all_three_tools_share_the_tool_definition(self):
+        tools = SCHEMA["properties"]["tools"]["properties"]
+        for name in ("test_runner", "build", "lint"):
+            self.assertEqual(tools[name]["$ref"], "#/$defs/tool")
 
     def test_package_manifests_is_object_form(self):
         pm = SCHEMA["properties"]["project"]["properties"]["detected"]["properties"]["package_manifests"]
