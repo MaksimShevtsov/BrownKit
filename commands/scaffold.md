@@ -121,15 +121,6 @@ Which clients should receive skill copies?
 (All three / choose a subset / universal .agents/ only)
 ```
 
-For any client not in the built-in table (see Step D-1), also ask:
-
-```
-Client "{id}" is not in the built-in list.
-  a) Paste the setup instructions URL
-  b) I'll search for the documentation myself
-  c) Skip this client
-```
-
 For any client id not present in `templates/clients.yml`, do **not** search
 for its format. Write universal `.agents/skills/` output, add a `skipped`
 entry to the run manifest naming the client, and tell the user which file
@@ -137,8 +128,8 @@ to extend. Guessing a client's native path from documentation the agent
 cannot verify risks writing malformed files into a user-owned directory.
 
 Record all selections in a planning summary and show it to the user before
-starting the pipeline. Adjust `--with/--no` flags and the Step D-1 client
-list accordingly.
+starting the pipeline. Adjust `--with/--no` flags and the client selection
+accordingly.
 
 **1. Detect installed clients — in priority order:**
 
@@ -293,7 +284,7 @@ Body must include:
 
 Omit this skill entirely (not a stub) when `assess_done == false`.
 
-## Dev skills — adding new code (Step `generate_dev_skills`)
+## Dev skills — adding new code (Phase 3)
 
 *Selected by default. Skip if user deselected "Dev skills" in Q1.*
 
@@ -316,7 +307,7 @@ actually present.
 | frontend present | `add-component` | UI component → props → state → test |
 | frontend present | `add-page` | Page / route → layout → data fetch → test |
 
-## Stack skills — improving existing code (Step `generate_stack_skills`)
+## Stack skills — improving existing code (Phase 3)
 
 *Selected by default. Skip if user deselected "Stack skills" in Q1.*
 
@@ -338,7 +329,7 @@ Cap stack skills at 5 entries — prioritize by frequency of use in the
 detected codebase (infer from `context.json → stack` and `paths.src` file
 count per layer).
 
-## Project instructions (Step `generate_instructions`)
+## Project instructions (Phase 3)
 
 *Selected by default.*
 
@@ -367,7 +358,7 @@ Must include, all derived from evidence — no invented values:
 Keep the instructions file under 120 lines. Reference `domain-model.md`
 for deeper entity detail rather than repeating it inline.
 
-When writing client copies in Step D-3, the generator for each client
+When writing client copies in Phase 4, the generator for each client
 places this file at the correct native path:
 
 | Client | Instructions path |
@@ -378,13 +369,13 @@ places this file at the correct native path:
 | `opencode` | Prepend to `AGENTS.md` or create `.opencode/AGENTS.md` |
 | `agy` | `.agents/AGENTS.md` (create if absent) |
 
-## Dev prompts (Step `generate_dev_prompts`)
+## Dev prompts (Phase 3)
 
 *Selected by default (implement-feature, fix-bug, write-tests, review-changes).
 review-security is opt-in and requires `assess_done`.*
 
 Prompts are stored at `evidence/scaffold/prompts/{name}.md` and copied to
-each selected client's prompt directory during Step D-3.
+each selected client's prompt directory during Phase 4.
 
 Each prompt must:
 - Reference actual capability IDs, file paths, and tool names from evidence.
@@ -410,12 +401,12 @@ Client-native prompt paths per client type:
 | `gemini` | `.gemini/skills/{name}/SKILL.md` |
 | `opencode` | `.opencode/skills/{name}/SKILL.md` |
 
-## Hooks (Step `generate_hooks`)
+## Hooks (Phase 3)
 
 *Opt-in. Generate only items selected in Q1.*
 
 Hooks are stored at `evidence/scaffold/hooks/` and copied to each
-client's native hook location during Step D-3.
+client's native hook location during Phase 4.
 
 | Hook | Trigger | Purpose | What it emits |
 |---|---|---|---|
@@ -440,10 +431,6 @@ client and note it in the summary.
 
 Generate role-focused subagents at `.agents/subagents/` and a project
 entry-point agent at `.agents/agent.md`.
-
-Mark `generate_dev_subagents` `"in_progress"` in the pipeline lock file.
-After generating all subagents and the project agent, mark both
-`generate_dev_subagents` and `generate_project_agent` `"completed"`.
 
 Use the `generate-dev-subagents` skill if available; otherwise execute inline.
 
