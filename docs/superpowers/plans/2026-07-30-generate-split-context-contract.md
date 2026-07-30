@@ -572,10 +572,18 @@ Expected: exit code 0, `{"unresolved": 0, "findings": []}`
 
 - [ ] **Step 5: Verify no stale names remain**
 
-Run: `grep -n "project_name\|compliance_targets\|security_context" commands/generate.md`
-Expected: no output — scoped to `generate.md`, the only file this task touches.
+Run: `grep -rn "project_name\|compliance_targets" commands/`
+Expected: no output. These two names are unambiguously wrong wherever they appear.
 
-Do **not** widen this grep to all of `commands/`. `security_context` is also the legitimate name of an *evidence-artifact* field, and a repo-wide search returns real, correct uses — `security_context.criticality` in `assess.md` and `security_context.data_sensitivity` in `validate.md`. Those describe the structure of `domain-model.md` output, not `context.json`, and must not be changed.
+**Do not grep for bare `security_context`.** It is also the legitimate name of a per-capability *evidence-artifact* block produced by `/discover` D6, and correct uses exist that must not be touched:
+
+| Location | Use | Verdict |
+|---|---|---|
+| `generate.md:91` | `{from security_context; compliance targets that apply}` | legitimate — the D6 block feeding a capability's `context.md` |
+| `assess.md:196` | `security_context.criticality` | legitimate — D6 field |
+| `validate.md:70` | `security_context.data_sensitivity` | legitimate — D6 field |
+
+Only the backticked `` `context.json → security_context…` `` spans were wrong, and the guard is what proves those are gone: it matches `context.json →` spans specifically and ignores bare prose mentions.
 
 - [ ] **Step 6: Commit**
 
