@@ -1074,9 +1074,11 @@ In `commands/init.md`, after the paragraph ending "derived adaptation hints (`db
 
 ```markdown
 The helper also returns a `candidates` block — every tool command, source
-path, and stack value it found, each with `file:line` provenance and a
-`rank` of `ci`, `manifest-explicit`, or `manifest-default`. It deliberately
+path, and stack value it found, each with its provenance. It deliberately
 does **not** choose between them. Resolving those candidates is step 3.
+
+Only **tool** candidates carry a `rank` of `ci`, `manifest-explicit`, or
+`manifest-default`; path and stack candidates carry a `source` only.
 
 Candidate ranking is meaningful: `ci` outranks the others because CI config
 is what actually gates merges. A repo whose `pom.xml` declares no surefire
@@ -1092,16 +1094,30 @@ In step 3, after the "**External inputs** (all optional)" list (ending line 110)
 **Stack, paths, and tools** — resolve from the helper's `candidates` block.
 Ask **only where the evidence is ambiguous**:
 
-- **Exactly one candidate** → adopt it. Record `confidence: "HIGH"` and its
-  source. Ask nothing.
-- **Two or more candidates** → present them with their sources and ranks,
-  and ask which one to record. For `tools.test_runner`, ask specifically
-  which command CI gates on. Record the chosen value with
-  `confidence: "HIGH"` when the user confirms a `ci`-ranked candidate,
-  `"MEDIUM"` otherwise.
+- **Exactly one candidate** → adopt it, recording its source. Ask nothing.
+- **Two or more candidates** → present them with their sources (and ranks,
+  for tools) and ask which one to record. For `tools.test_runner`, ask
+  specifically which command CI gates on.
 - **Zero candidates** → record `{ "command": null, "source": "not-collected",
   "confidence": null }`. Offer the user the chance to supply the command, but
   **do not invent one** and do not guess from the language.
+
+**Confidence tracks evidence strength, not whether a question was asked.**
+Derive `tools.*.confidence` from the adopted candidate's rank:
+
+| Rank of adopted candidate | `confidence` |
+|---|---|
+| `ci` — the command CI actually runs | `HIGH` |
+| `manifest-explicit` — a declared script, plugin, or target | `MEDIUM` |
+| `manifest-default` — inferred from a manifest merely existing | `LOW` |
+| supplied by the user when no candidate existed | `HIGH` |
+| no command resolved | `null` |
+
+A lone candidate is **not** automatically `HIGH`. `mvn test`, offered only
+because a `pom.xml` exists, is a `manifest-default` guess and records as
+`LOW` whether or not it was the only option. That value becomes an
+`allowed-tools` entry downstream, so it must not claim more certainty than
+its evidence supports.
 
 Example of the ambiguous case:
 
