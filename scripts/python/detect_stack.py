@@ -130,6 +130,20 @@ CI_STEP = re.compile(
     re.MULTILINE,
 )
 
+# GitHub Actions `run: |` / `run: >` block-scalar header. The step body is
+# every following line indented deeper than this header line. `indent`
+# covers a leading YAML list dash too ("- run: |"), a common step form.
+RUN_BLOCK_HEADER = re.compile(
+    r"^(?P<indent>[ \t]*(?:-[ \t]+)?)run:[ \t]*(?:\||\|-|>|>-)[ \t]*(?:#.*)?$",
+    re.MULTILINE,
+)
+
+# Jenkins `sh '''…'''` / `sh """…"""` multi-line shell steps.
+SH_TRIPLE = re.compile(
+    r"""sh\s+(?:'''(?P<sh3q>.*?)'''|\"\"\"(?P<sh3dq>.*?)\"\"\")""",
+    re.DOTALL,
+)
+
 # Maven/Gradle/npm defaults used only when nothing more specific is found.
 MANIFEST_DEFAULTS = {
     "pom.xml":       {"test_runner": "mvn test", "build": "mvn -DskipTests package"},
@@ -313,6 +327,116 @@ def _ci_files(root: Path) -> list[Path]:
     return found
 
 
+def _command_lines(block: str, first_line: int) -> list[tuple[str, int]]:
+    """Split a multi-line shell block into logical (command, line) pairs.
+
+    A line ending in a bare trailing backslash joins the next physical line
+    into the same logical command, attributed to the line the command
+    started on. Blank lines and lines whose first non-space character is
+    '#' are not commands.
+    """
+    out: list[tuple[str, int]] = []
+    lines = block.split("\n")
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip()
+        if not stripped or stripped.startswith("#"):
+            i += 1
+            continue
+        start_line = first_line + i
+        parts = [stripped]
+        while parts[-1].endswith("\\"):
+            parts[-1] = parts[-1][:-1].rstrip()
+            i += 1
+            if i >= len(lines):
+                break
+            parts.append(lines[i].strip())
+        cmd = " ".join(p for p in parts if p)
+        if cmd:
+            out.append((cmd, start_line))
+        i += 1
+    return out
+
+
+def _block_scalar_body(text: str, header) -> tuple[str, int, int]:
+    """Return (body_text, body_first_line, body_end_pos) for the YAML block
+    scalar that follows a `run: |`/`run: >` header match.
+
+    The body is every following line indented deeper than the header line
+    (blank lines are included so an interior blank line doesn't end it
+    early); the first line at or below the header's indentation ends it.
+    """
+    header_indent = len(header.group("indent").expandtabs())
+    pos = header.end() + 1  # skip the newline ending the header line
+    body_first_line = text[:pos].count("\n") + 1
+    body_lines: list[str] = []
+    while pos <= len(text):
+        nl = text.find("\n", pos)
+        line = text[pos:] if nl == -1 else text[pos:nl]
+        if line.strip() != "":
+            leading_ws = line[:len(line) - len(line.lstrip(" \t"))].expandtabs()
+            if len(leading_ws) <= header_indent:
+                break
+        body_lines.append(line)
+        if nl == -1:
+            pos = len(text)
+            break
+        pos = nl + 1
+    return "\n".join(body_lines), body_first_line, pos
+
+
+def _blank_span(text: str, start: int, end: int) -> str:
+    """Replace text[start:end] with spaces (preserving newlines and length)
+    so a later pass can't double-match content already extracted."""
+    end = min(end, len(text))
+    blanked = "".join(ch if ch == "\n" else " " for ch in text[start:end])
+    return text[:start] + blanked + text[end:]
+
+
+def _commands_in_text(text: str, rel: str) -> list[dict]:
+    """Extract shell commands with file:line provenance from one CI file's text.
+
+    Handles three forms: a GitHub Actions `run: |`/`run: >` block scalar
+    (one candidate per command line in the body), a Jenkins
+    `sh '''…'''` / `sh \"\"\"…\"\"\"` multi-line block (same), and everything
+    else via the single-line CI_STEP patterns. Spans already consumed by the
+    first two are blanked out before the single-line scan runs, so nothing
+    is double-counted or left as a bare "|" fragment.
+    """
+    out: list[dict] = []
+    consumed: list[tuple[int, int]] = []
+
+    for header in RUN_BLOCK_HEADER.finditer(text):
+        body, first_line, end_pos = _block_scalar_body(text, header)
+        for cmd, ln in _command_lines(body, first_line):
+            out.append({"command": cmd, "source": f"{rel}:{ln}"})
+        consumed.append((header.start(), end_pos))
+
+    for match in SH_TRIPLE.finditer(text):
+        if match.group("sh3q") is not None:
+            body, body_pos = match.group("sh3q"), match.start("sh3q")
+        else:
+            body, body_pos = match.group("sh3dq"), match.start("sh3dq")
+        first_line = text[:body_pos].count("\n") + 1
+        for cmd, ln in _command_lines(body, first_line):
+            out.append({"command": cmd, "source": f"{rel}:{ln}"})
+        consumed.append((match.start(), match.end()))
+
+    residual = text
+    for start, end in consumed:
+        residual = _blank_span(residual, start, end)
+
+    for match in CI_STEP.finditer(residual):
+        raw = match.group("sh") or match.group("run") or match.group("bare") or ""
+        cmd = raw.strip()
+        if not cmd:
+            continue
+        line = residual[:match.start()].count("\n") + 1
+        out.append({"command": cmd, "source": f"{rel}:{line}"})
+
+    return out
+
+
 def _ci_commands(root: Path) -> list[dict]:
     """Every shell command found in CI configs, with file:line provenance."""
     out: list[dict] = []
@@ -322,13 +446,7 @@ def _ci_commands(root: Path) -> list[dict]:
         except OSError:
             continue
         rel = str(path.relative_to(root)).replace("\\", "/")
-        for match in CI_STEP.finditer(text):
-            raw = match.group("sh") or match.group("run") or match.group("bare") or ""
-            cmd = raw.strip()
-            if not cmd:
-                continue
-            line = text[:match.start()].count("\n") + 1
-            out.append({"command": cmd, "source": f"{rel}:{line}"})
+        out.extend(_commands_in_text(text, rel))
     return out
 
 
@@ -484,7 +602,7 @@ def _stack_candidates(root: Path, manifests: list[dict],
                 add("database", name, m["path"])
 
     if has_db and not out["database"]:
-        add("database", "unknown", "DB dependency detected, vendor unresolved")
+        add("database", "not-collected", "DB dependency detected, vendor unresolved")
     return out
 
 

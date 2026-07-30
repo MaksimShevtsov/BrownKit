@@ -1,3 +1,4 @@
+import shutil
 import unittest
 from pathlib import Path
 
@@ -46,6 +47,80 @@ class CiExtractionTests(unittest.TestCase):
         self.assertEqual(found[0]["source"], "Jenkinsfile:4")
 
 
+class MultilineCiExtractionTests(unittest.TestCase):
+    """Review found that multi-line CI steps were silently dropped: a GHA
+    `run: |` block scalar captured only the literal "|" (no real command,
+    no signal anything was missed), and a Jenkins `sh '''...'''` block
+    produced zero matches. detect_stack's rule is to emit every candidate
+    it found -- seeing nothing is worse than a bad candidate, since /init
+    can't ask the user about a command that was never reported."""
+
+    def setUp(self):
+        self.tmp = Path(__file__).parent / "_tmp_multiline_ci"
+        (self.tmp / ".github" / "workflows").mkdir(parents=True, exist_ok=True)
+        self.workflow = self.tmp / ".github" / "workflows" / "ci.yml"
+        self.workflow.write_text(
+            "jobs:\n"
+            "  build:\n"
+            "    steps:\n"
+            "      - run: |\n"
+            "          mvn -B verify\n"
+            "          # skip: comment line, not a command\n"
+            "          mvn -B jacoco:report\n",
+            encoding="utf-8",
+        )
+        self.jenkinsfile = self.tmp / "Jenkinsfile"
+        self.jenkinsfile.write_text(
+            "pipeline {\n"
+            "  stages {\n"
+            "    stage('build') {\n"
+            "      steps {\n"
+            "        sh '''\n"
+            "          mvn -B verify\n"
+            "          mvn -B jacoco:report\n"
+            "        '''\n"
+            "      }\n"
+            "    }\n"
+            "  }\n"
+            "}\n",
+            encoding="utf-8",
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_gha_block_scalar_yields_two_candidates_with_line_numbers(self):
+        cmds = ds._ci_commands(self.tmp)
+        by_command = {
+            c["command"]: c["source"] for c in cmds
+            if c["source"].startswith(".github/workflows/ci.yml")
+        }
+        self.assertEqual(by_command.get("mvn -B verify"),
+                          ".github/workflows/ci.yml:5")
+        self.assertEqual(by_command.get("mvn -B jacoco:report"),
+                          ".github/workflows/ci.yml:7")
+
+    def test_gha_block_scalar_comment_line_is_ignored(self):
+        cmds = ds._ci_commands(self.tmp)
+        commands = [c["command"] for c in cmds]
+        self.assertFalse(any("skip" in c or c.startswith("#") for c in commands))
+
+    def test_jenkins_triple_quoted_sh_yields_two_commands(self):
+        cmds = ds._ci_commands(self.tmp)
+        by_command = {
+            c["command"]: c["source"] for c in cmds
+            if c["source"].startswith("Jenkinsfile")
+        }
+        self.assertEqual(by_command.get("mvn -B verify"), "Jenkinsfile:6")
+        self.assertEqual(by_command.get("mvn -B jacoco:report"), "Jenkinsfile:7")
+
+    def test_no_bare_block_indicator_candidate_survives(self):
+        """The original defect: a bare "|" captured as a fake command."""
+        cmds = ds._ci_commands(self.tmp)
+        commands = [c["command"] for c in cmds]
+        self.assertNotIn("|", commands)
+
+
 class ToolCandidateRankingTests(unittest.TestCase):
     """The sample repo has no surefire plugin in pom.xml but its Jenkinsfile
     runs `mvn -B verify` - so CI must outrank the manifest default."""
@@ -86,6 +161,34 @@ class StackAndPathCandidateTests(unittest.TestCase):
 
     def test_maven_test_layout_detected(self):
         self.assertIn("src/test/java", [x["path"] for x in self.c["paths"]["test"]])
+
+
+class DatabaseFallbackTests(unittest.TestCase):
+    """A DB dependency can be detected generically (e.g. Dapper, a .NET
+    micro-ORM matched by DB_DEP_PATTERNS) without matching any vendor
+    needle in DATABASE_DEPS. Per the human partner's ruling, the fallback
+    candidate must use the term "not-collected" -- BrownKit's existing
+    vocabulary for a known-present, unidentified signal -- not invent a
+    new word like "unknown", and must explain itself via `source`."""
+
+    def setUp(self):
+        self.tmp = Path(__file__).parent / "_tmp_db_fallback"
+        self.tmp.mkdir(parents=True, exist_ok=True)
+        (self.tmp / "pom.xml").write_text(
+            "<project>\n"
+            "  <!-- data access via Dapper -->\n"
+            "</project>\n",
+            encoding="utf-8",
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_unresolved_vendor_reports_not_collected(self):
+        database = ds.detect(self.tmp)["candidates"]["stack"]["database"]
+        self.assertEqual(len(database), 1)
+        self.assertEqual(database[0]["value"], "not-collected")
+        self.assertIn("vendor unresolved", database[0]["source"])
 
 
 class BackwardCompatTests(unittest.TestCase):
