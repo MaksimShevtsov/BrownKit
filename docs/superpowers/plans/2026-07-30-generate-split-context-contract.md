@@ -12,6 +12,14 @@
 
 **Branch:** `design/generate-split-context-contract`
 
+## Pre-flight amendments
+
+Three rulings made before execution, after a scan for places where the plan mandated something a review rubric would flag:
+
+1. **Tasks 7 and 8 merged into one task** (now Task 7, 20 steps). Splitting them meant Task 7's review would see ~450 lines duplicating `generate.md` and flag it correctly, since the removal was in a task it could not see. As one task the diff reads as the move it is. Task count is now **10**; former Tasks 9/10/11 are now 8/9/10.
+2. **Stated test counts are informational** — see Global Constraints below.
+3. **Task 10's docs assertion narrowed** from the bare word `"client"` to specific markers (`.agents/skills`, `subagent`, `clients.yml`, `client-integrations`), which tests the real requirement without failing on legitimate prose.
+
 ## Global Constraints
 
 Every task's requirements implicitly include this section.
@@ -22,7 +30,8 @@ Every task's requirements implicitly include this section.
 - **`not-collected` is a first-class value.** Never substitute `0`, `""`, `"none"`, or omit a field to keep output well-formed. Absent signals are `null` with a stated reason.
 - **Helper scripts emit JSON on stdout and write nothing to disk.** Exit non-zero only per each script's documented contract.
 - **Every finding carries a source.** File path, and line number where meaningful.
-- **Two files are append-only for version metadata:** bump `extension.yml` `version` and add a `CHANGELOG.md` entry only in Task 11.
+- **Two files are append-only for version metadata:** bump `extension.yml` `version` and add a `CHANGELOG.md` entry only in the final docs task.
+- **Stated test counts are informational, not assertions.** A green suite is the gate. Adding a legitimate test case that raises the count above the stated number is fine and welcome — report the actual count, do not delete coverage to match the plan, and do not treat a higher count as a failure. A count *below* the stated number means tests were skipped or lost: investigate that.
 
 ## Testing approach
 
@@ -1285,19 +1294,25 @@ Test asserts the omission so a later edit cannot regress it."
 
 ---
 
-### Task 7: Create `commands/scaffold.md` and `templates/clients.yml`
+### Task 7: Extract scaffolding into `/scaffold` and trim `/generate`
 
-The extraction. Additive — `/generate` is not trimmed until Task 8, so no capability is lost in between.
+**This is one move, not a copy plus a delete.** Create `commands/scaffold.md` with the content that currently lives in `commands/generate.md` Parts D / D-bis / E, and delete it from `generate.md` **in the same task**, so the diff reads as a refactor rather than as duplication. Both halves land in one commit sequence and one review.
+
+Content described as "move" must be copied **verbatim** from the stated `generate.md` lines — not paraphrased, not regenerated. The point of the verbatim rule is that a move is reviewable: a reader can confirm nothing was lost or silently reworded. Where the plan calls for a change to moved text, it says so explicitly and gives the replacement.
 
 **Files:**
 - Create: `commands/scaffold.md`
 - Create: `templates/clients.yml`
-- Modify: `extension.yml` (add the command entry only; version bump is Task 11)
+- Modify: `commands/generate.md` (delete lines 287–924; rewrite final-steps, outputs, and gates; add the deprecation notice)
+- Modify: `extension.yml` (add the command entry only; the version bump is the final docs task)
 - Create: `tests/test_clients_template.py`
+- Create: `tests/test_generate_trimmed.py`
 
 **Interfaces:**
 - Consumes: `phases.scaffold` (Task 6); `context.json.tools.*.command`, `paths.*`, `stack.*` (Tasks 2, 5); `evidence/generate/capability-contexts/BC-*/` from `/generate` Part A.
-- Produces: `evidence/scaffold/run-manifest.json` with the `plan` / `written` / `merged` / `skipped` shape that Task 9 indexes.
+- Produces: `evidence/scaffold/run-manifest.json` with the `plan` / `written` / `merged` / `skipped` shape that Task 8 indexes; a `/generate` whose outputs are confined to `evidence/generate/`.
+
+**Commit structure:** two commits are expected and preferred — one adding `scaffold.md` + `clients.yml` + the `extension.yml` entry, one trimming `generate.md`. Both are part of this single task and are reviewed together.
 
 - [ ] **Step 1: Write the failing test for the client table**
 
@@ -1461,7 +1476,7 @@ Expected: PASS — 5 tests
 
 - [ ] **Step 5: Create `commands/scaffold.md`**
 
-Build the file in this order. Everything described as "move" is a verbatim copy from `commands/generate.md` at the stated lines — do not paraphrase, and do not delete from `generate.md` yet (Task 8 does that).
+Build the file in this order. Everything described as "move" is a verbatim copy from `commands/generate.md` at the stated lines — do not paraphrase. Leave `generate.md` untouched until Step 9's commit lands; Steps 10–20 remove the moved content from it.
 
 1. **Frontmatter:**
 
@@ -1702,7 +1717,7 @@ In the `provides.commands` list, insert after the `speckit.brownkit.generate` en
       description: "Generate client-agnostic skills, subagents, prompts, hooks, and project instructions from locked evidence; install them at each client's native path."
 ```
 
-Do **not** touch the `version` field — that is Task 11.
+Do **not** touch the `version` field — that is Task 10.
 
 - [ ] **Step 7: Verify structural integrity**
 
@@ -1735,19 +1750,11 @@ documentation the agent cannot verify.
 Additive -- /generate is trimmed in the next commit."
 ```
 
----
+#### Second half — trim `/generate`
 
-### Task 8: Trim `/generate` to Parts A–C
+The remaining steps remove from `generate.md` exactly what the steps above added to `scaffold.md`. Do not start them until Step 9's commit exists.
 
-**Files:**
-- Modify: `commands/generate.md` (delete lines 287–924; rewrite the final-steps, outputs, and gates sections; add the deprecation notice)
-- Create: `tests/test_generate_trimmed.py`
-
-**Interfaces:**
-- Consumes: `commands/scaffold.md` from Task 7 (the deprecation notice names it).
-- Produces: a `/generate` whose outputs are confined to `evidence/generate/`.
-
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 10: Write the failing test**
 
 Create `tests/test_generate_trimmed.py`:
 
@@ -1801,12 +1808,12 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 11: Run test to verify it fails**
 
 Run: `python -m unittest tests.test_generate_trimmed -v`
 Expected: FAIL — `AssertionError: '# Part D' unexpectedly found`
 
-- [ ] **Step 3: Delete the scaffolding parts**
+- [ ] **Step 12: Delete the scaffolding parts**
 
 Delete `commands/generate.md` lines **287–924** inclusive. That range starts at the blank line after the `---` separator following Part C (line 286) and ends at the `---` separator preceding `# Final steps` (line 924).
 
@@ -1818,7 +1825,7 @@ grep -n -A4 "to evidence or be marked as an open question" commands/generate.md
 
 Expected: the paragraph, blank, `---`, blank, `# Final steps`.
 
-- [ ] **Step 4: Replace the four scaffolding flags with a deprecation notice**
+- [ ] **Step 13: Replace the four scaffolding flags with a deprecation notice**
 
 In the `$ARGUMENTS` section, replace these two bullets (originally lines 29–32):
 
@@ -1839,7 +1846,7 @@ with:
   and otherwise proceed unchanged. Removed in 2.0.0.
 ```
 
-- [ ] **Step 5: Rewrite the outputs section**
+- [ ] **Step 14: Rewrite the outputs section**
 
 Replace the entire `# Outputs` list with:
 
@@ -1855,7 +1862,7 @@ Replace the entire `# Outputs` list with:
 - `evidence/generate/spec-seeds/BC-{NNN}-spec-seed.md`  (per selection policy)
 ```
 
-- [ ] **Step 6: Rewrite the acceptance gates**
+- [ ] **Step 15: Rewrite the acceptance gates**
 
 Replace the entire `# Acceptance gates` section with:
 
@@ -1882,7 +1889,7 @@ Every output is under `evidence/generate/`. This phase writes nothing to
 If any gate fails, fix before returning control.
 ```
 
-- [ ] **Step 7: Add the next-step line to the summary**
+- [ ] **Step 16: Add the next-step line to the summary**
 
 In `## Summarize to the user`, delete every bullet describing skills, subagents, client copies, instructions, hooks, and web-resolved clients — from "Count of skills generated under `.agents/skills/`" through "confirm the source that was used". Keep the `files.txt` over-300 warning. Then replace the final `Next command` bullet with:
 
@@ -1894,12 +1901,12 @@ In `## Summarize to the user`, delete every bullet describing skills, subagents,
 
 This line is the fix for the silent-drop hazard: a user running `/generate` with no flags, exactly as in v1.0.2, is told where the missing output went.
 
-- [ ] **Step 8: Run tests to verify they pass**
+- [ ] **Step 17: Run tests to verify they pass**
 
 Run: `python -m unittest tests.test_generate_trimmed -v`
 Expected: PASS — 8 tests
 
-- [ ] **Step 9: Verify the reference guard and line count**
+- [ ] **Step 18: Verify the reference guard and line count**
 
 ```bash
 python scripts/python/check_prompt_refs.py
@@ -1908,12 +1915,12 @@ python -c "print(sum(1 for _ in open('commands/generate.md', encoding='utf-8')))
 
 Expected: guard exits 0 with `unresolved: 0`; line count between 330 and 400.
 
-- [ ] **Step 10: Run the full suite**
+- [ ] **Step 19: Run the full suite**
 
 Run: `python -m unittest discover -s tests -v`
 Expected: PASS — 54 tests
 
-- [ ] **Step 11: Commit**
+- [ ] **Step 20: Commit**
 
 ```bash
 git add commands/generate.md tests/test_generate_trimmed.py
@@ -1928,7 +1935,7 @@ of silently getting none."
 
 ---
 
-### Task 9: `/finish` indexes the scaffold phase
+### Task 8: `/finish` indexes the scaffold phase
 
 **Files:**
 - Modify: `commands/finish.md` (preconditions around line 30, Part D manifest sketch around line 190, summary around line 220)
@@ -2007,7 +2014,7 @@ files BrownKit does not own must not appear in the evidence manifest."
 
 ---
 
-### Task 10: Coverage-criterion fix
+### Task 9: Coverage-criterion fix
 
 **Files:**
 - Modify: `commands/discover.md` (D3 output section around lines 110–116)
@@ -2302,7 +2309,7 @@ express."
 
 ---
 
-### Task 11: Docs, version bump, and release notes
+### Task 10: Docs, version bump, and release notes
 
 **Files:**
 - Modify: `README.md` (pipeline diagram line 13, command table lines 16–24, hooks paragraph line 28, evidence layout lines 67–76, install line 43)
@@ -2375,9 +2382,12 @@ class PhaseDocs(unittest.TestCase):
         self.assertTrue((ROOT / "docs/phases/scaffold.md").is_file())
 
     def test_generate_phase_doc_no_longer_claims_skills(self):
-        text = read("docs/phases/generate.md")
-        for banned in (".agents/skills", "subagent", "client"):
-            self.assertNotIn(banned, text.lower())
+        """Specific markers, not the bare word 'client' -- the phase doc may
+        legitimately mention downstream AI tooling."""
+        text = read("docs/phases/generate.md").lower()
+        for banned in (".agents/skills", "subagent.md", "subagent", "clients.yml",
+                       "client-integrations"):
+            self.assertNotIn(banned, text)
 
     def test_methodology_map_has_scaffold_row(self):
         self.assertIn("/scaffold", read("docs/methodology.md"))
@@ -2629,8 +2639,8 @@ three read-only hook commands against five registered hooks."
 
 | Spec section | Task |
 |---|---|
-| §3 Architecture — `/generate` trim | 8 |
-| §3 Architecture — `/scaffold` creation, staging dir, preconditions, degraded mode | 7 |
+| §3 Architecture — `/generate` trim | 7 (Steps 10–20) |
+| §3 Architecture — `/scaffold` creation, staging dir, preconditions, degraded mode | 7 (Steps 1–9) |
 | §3 Architecture — pattern-only phase registration (workflow + manifest) | 6 |
 | §4 `stack`/`paths`/`tools` schema and template | 2 |
 | §4 `tools` provenance asymmetry | 2 |
@@ -2639,13 +2649,13 @@ three read-only hook commands against five registered hooks."
 | §4 Ecosystem coverage, Python 3.9 TOML constraint | 4 |
 | §4 Two misnamed refs, `package_manifests` type | 3, 2 |
 | §5 Five phases, run manifest, re-run semantics, `clients.yml`, 6 gates | 7 |
-| §6 Coverage sidecar, validator fallback, `needs-review` for honest sub-target | 10 |
-| §7 Migration — deprecated flags, next-step line, hooks unchanged | 8, 11 |
-| §8 Change inventory — all 4 new and 17 modified files | 1–11 |
+| §6 Coverage sidecar, validator fallback, `needs-review` for honest sub-target | 9 |
+| §7 Migration — deprecated flags, next-step line, hooks unchanged | 7, 10 |
+| §8 Change inventory — all 4 new and 17 modified files | 1–10 |
 | §9.1 Templates vs schemas | 2, 6 |
 | §9.2 `detect_stack` against the fixture | 4 |
 | §9.3 Reference-integrity guard | 1 |
-| §9.4 Coverage regression fixture | 10 |
+| §9.4 Coverage regression fixture | 9 |
 
 `docs/phases/discover.md` is correctly absent — §8 lists it as untouched.
 
@@ -2653,6 +2663,6 @@ three read-only hook commands against five registered hooks."
 
 **Type consistency:** `_classify_command` returns the same three category strings (`test_runner`, `build`, `lint`) used as `candidates.tools` keys in Task 4, as `context.json.tools` keys in Task 2, and as `tools.*.command` references in Task 7. `rank` values (`ci`, `manifest-explicit`, `manifest-default`) are identical between Task 4's implementation and Task 5's prose. The run manifest's four keys (`plan`, `written`, `merged`, `skipped`) match across Tasks 7, 9, and 11. `_coverage_figure` returns a 4-tuple consumed positionally in exactly one place. `check`/`extract_refs`/`resolve` signatures match between Task 1's test and implementation.
 
-**Cumulative test counts** by task: 10 → 18 → 18 → 33 → 33 → 41 → 46 → 54 → 54 → 61 → 73. Per module: `check_prompt_refs` 10, `context_schema` 8, `detect_stack` 15, `phase_registration` 8, `clients_template` 5, `generate_trimmed` 8, `coverage_criterion` 7, `docs_consistency` 12.
+**Cumulative test counts** by task (informational — see Global Constraints): 10 → 18 → 18 → 33 → 33 → 41 → 54 → 54 → 61 → 73. Per module: `check_prompt_refs` 10, `context_schema` 8, `detect_stack` 15, `phase_registration` 8, `clients_template` 5, `generate_trimmed` 8, `coverage_criterion` 7, `docs_consistency` 12.
 
 **Corrections applied during review:** the guard's initial count is 16, not 11 — verified by running the regex over `generate.md`. `project_name` at line 720 *is* a backtick span, so the guard catches it and Task 3 fixes all three of its references under guard coverage. And `resolve()` gained `$ref` support, without which Task 7's `tools.test_runner.command` references would have failed against Task 2's `$defs/tool` indirection.
