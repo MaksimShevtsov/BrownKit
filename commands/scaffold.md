@@ -391,8 +391,10 @@ Each prompt must:
 Client-native prompt paths are resolved from each client's `prompts_path` in
 `templates/clients.yml`. When a client's entry omits `prompts_path`, it has
 no separate prompt location — the prompt is delivered as an ordinary skill
-copy at that client's `skills_path` instead, with `disable-model-invocation:
-true` set per the `claude` rule above.
+copy at that client's `skills_path` instead. Set `disable-model-invocation:
+true` on that copy only for clients whose `extra_frontmatter` declares the
+field; for every other client, the copy carries exactly the fields its own
+entry lists, and nothing more.
 
 ## Hooks (Phase 3)
 
