@@ -280,7 +280,7 @@ Record the exact number. Task 2 drives it to 3, Task 3 to 0.
 git add scripts/python/check_prompt_refs.py tests/__init__.py tests/test_check_prompt_refs.py
 git commit -m "test: add context.json reference-integrity guard
 
-Fails against the current repo with 11 unresolved references in
+Fails against the current repo with 16 unresolved references in
 generate.md, which is the defect v1.1.0 fixes."
 ```
 
