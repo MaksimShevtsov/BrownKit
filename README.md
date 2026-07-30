@@ -10,7 +10,7 @@ modernization planning, AI-assisted refactoring, and per-team handoff.
 ## Pipeline
 
 ```
-/init → /scan → /discover → [/report] → /assess → /generate → /finish
+/init → /scan → /discover → [/report] → /assess → /generate → [/scaffold] → /finish
 ```
 
 | Command | Purpose |
@@ -20,13 +20,17 @@ modernization planning, AI-assisted refactoring, and per-team handoff.
 | `speckit.brownkit.discover` | Verify candidates; lock L1/L2 capabilities; build domain model. |
 | `speckit.brownkit.report`   | Emit stakeholder / architect / dev / SDET / (conditional) security reports. |
 | `speckit.brownkit.assess`   | STRIDE per capability + QA risk analysis + unified scoring. |
-| `speckit.brownkit.generate` | Capability-scoped AI contexts, security prompts, spec seeds. |
+| `speckit.brownkit.generate` | Capability-scoped AI contexts and spec seeds. |
+| `speckit.brownkit.scaffold`  | Skills, subagents, prompts, hooks, and project instructions, installed per client. |
 | `speckit.brownkit.finish`   | Validate acceptance criteria and package per-team handoffs. |
 
 ## Hooks
 
-Three read-only commands plug into the spec-kit workflow without re-running
-analysis. They read existing evidence and surface the relevant slice.
+Five hooks plug into the spec-kit workflow. Four of them — `enrich`
+(fired both before specify and before clarify), `gate`, and `validate` —
+are read-only: they surface a slice of existing evidence without
+re-running analysis. The remaining hook invokes `/generate`, which writes
+under `evidence/`. All five are optional and prompt before running.
 
 | Command | Fires | Purpose |
 | --- | --- | --- |
@@ -40,7 +44,7 @@ of them to treat unresolved findings as a hard stop.
 ## Install
 
 ```bash
-specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v1.0.2.zip
+specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v1.1.0.zip
 ```
 
 ## Update
@@ -51,7 +55,7 @@ The `specify extension update` command does not support external URLs, so updati
 specify extension remove brownkit && specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v<NEW_VERSION>.zip
 ```
 
-Replace `<NEW_VERSION>` with the target version (e.g. `v1.1.0`). Check [`CHANGELOG.md`](CHANGELOG.md) for what changed between versions before updating.
+Replace `<NEW_VERSION>` with the target version (e.g. `v1.2.0`). Check [`CHANGELOG.md`](CHANGELOG.md) for what changed between versions before updating.
 
 ## Configure
 
@@ -72,7 +76,8 @@ evidence/
 ├── qa/          test-inventory, coverage-map, testability, environments, qa-context
 ├── risk/        unified-risk-map
 ├── reports/     stakeholder, architect, dev, sdet, (security)
-└── generate/    capability-contexts/, spec-seeds/, handoff/<team>/
+├── generate/    capability-contexts/, spec-seeds/, handoff/<team>/
+└── scaffold/   run-manifest, client-integrations, instructions, prompts/, hooks/
 ```
 
 ## Methodology

@@ -68,7 +68,7 @@ record `pass | fail | n/a` with a reason.
 | 7 | Unified composite risk score per capability with **1–3 drivers**. | `risk/unified-risk-map.json` — validate driver count and specificity |
 | 8 | All findings traceable to evidence with confidence levels. | spot-check vulnerabilities, threats, testability findings |
 | 9 | Cross-capability risks identified. | `security/cross-capability-risks.json` |
-| 10 | File-to-capability coverage ≥ **90%** (or actual reported with gaps). | `discovery/coverage.md` |
+| 10 | File-to-capability coverage ≥ target. Prefers `discovery/coverage-summary.json`, falling back to a labeled `File-to-capability coverage: N%` line; an honestly reported sub-target figure with documented orphans is `needs-review`, not a flat fail. | `discovery/coverage-summary.json` (fallback: `discovery/coverage.md`) |
 | 11 | Industry blueprint comparison complete. | `discovery/blueprint-comparison.md` (unless `--no-blueprint` was used at `/discover`) |
 | 12 | Domain model generated with full code traceability. | `discovery/domain-model.md` — every BC has code paths and source links |
 | 13 | All five reports generated; SDET report includes **Not-Collected Summary**. | `reports/*.md`; inspect SDET report for the mandatory section |

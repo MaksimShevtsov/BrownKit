@@ -11,7 +11,7 @@ never fabricated as a default.
 ## Pipeline
 
 ```
-/init → /scan → /discover → [/report] → /assess → /generate → /finish
+/init → /scan → /discover → [/report] → /assess → /generate → [/scaffold] → /finish
 ```
 
 Each stage has a dedicated command (`speckit.brownkit.<phase>`) and a
@@ -45,6 +45,7 @@ per-phase spec in [`phases/`](phases/).
 | `/report`   | 4 always-emitted reports, 1 conditional (security), 3 side-cars when `/assess` has run |
 | `/assess`   | STRIDE threat files, `vulnerabilities/catalog.json`, `control-map.json`, `risk-scores.json`, `qa-risk-scores.json`, `unified-risk-map.json`, `cross-capability-risks.json`, `gaps.json` |
 | `/generate` | `capability-contexts/BC-*/`, `security-prompts.md`, `spec-seeds/BC-*.md` |
+| `/scaffold` | `.agents/skills/`, `.agents/subagents/`, `.agents/agent.md`, `scaffold/run-manifest.json`, per-client copies |
 | `/finish`   | `acceptance-check.md`, `manifest.json`, per-team handoff bundles |
 
 ## Brownfield vs. greenfield
@@ -72,7 +73,10 @@ A complete run satisfies every item in the checklist enforced by `/finish`:
 7. Unified composite per capability with 1–3 **specific** drivers.
 8. All findings traceable with confidence levels.
 9. Cross-capability systemic risks identified.
-10. File-to-capability coverage ≥ 90% (or actual reported with gaps).
+10. File-to-capability coverage ≥ target (from `coverage-summary.json`,
+    falling back to a labeled line in `coverage.md`; an honestly reported
+    sub-target figure with documented orphans is `needs-review`, not a
+    flat failure).
 11. Industry blueprint comparison complete.
 12. Domain model with full code traceability.
 13. All five reports generated; SDET report includes Not-Collected Summary.
