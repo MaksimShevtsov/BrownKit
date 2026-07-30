@@ -23,6 +23,16 @@ class ClassifyCommandTests(unittest.TestCase):
     def test_unrecognised_command_is_none(self):
         self.assertIsNone(ds._classify_command("mvn -B jacoco:report"))
 
+    def test_skiptests_flag_does_not_make_it_a_test_command(self):
+        """'-DskipTests' contains 'test' as a substring; it is not a test run."""
+        self.assertEqual(ds._classify_command("mvn -DskipTests package"), "build")
+
+    def test_build_property_flag_does_not_make_it_a_build(self):
+        """'-Dbuild.profile' contains 'build'; the command still runs tests."""
+        self.assertEqual(
+            ds._classify_command("mvn verify -Dbuild.profile=ci"), "test_runner"
+        )
+
 
 class CiExtractionTests(unittest.TestCase):
     def test_finds_jenkinsfile(self):

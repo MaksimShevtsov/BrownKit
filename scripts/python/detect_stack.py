@@ -280,19 +280,25 @@ def _architecture_hint(root: Path, manifests: list[dict]) -> str:
 
 
 def _classify_command(cmd: str) -> str | None:
-    """Bucket a shell command into a tool category, or None if unrecognised."""
-    low = cmd.lower()
+    """Bucket a shell command into a tool category, or None if unrecognised.
+
+    Matches whole segments, not substrings. Bare substring matching gets this
+    wrong in both directions: "-DskipTests" contains "test" (so
+    "mvn -DskipTests package" reads as a test command) and "-Dbuild.profile"
+    contains "build" (so "mvn verify -Dbuild.profile=ci" reads as a build).
+    Splitting on non-alphanumerics makes both read correctly, because the
+    flag becomes "dskiptests" / "dbuild" rather than "test" / "build".
+    """
+    words = set(re.split(r"[^a-z0-9]+", cmd.lower()))
     for token in LINT_TOKENS:          # lint before test: "ruff check" is lint
-        if token in low:
+        if token in words:
             return "lint"
-    # build before test: a flag like "-DskipTests" would otherwise make the
-    # substring "test" win over "package"/"build" in a build command.
-    for token in BUILD_TOKENS:
-        if token in low:
-            return "build"
     for token in TEST_TOKENS:
-        if token in low:
+        if token in words:
             return "test_runner"
+    for token in BUILD_TOKENS:
+        if token in words:
+            return "build"
     return None
 
 
