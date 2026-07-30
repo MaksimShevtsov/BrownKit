@@ -57,6 +57,18 @@ The helper reports languages, manifests, frameworks, CI platforms, frontend
 presence, DB-dependency hint, and coverage-report candidates, plus derived
 adaptation hints (`db_schema_analysis`, `frontend_analysis`, `coverage_source`).
 
+The helper also returns a `candidates` block — every tool command, source
+path, and stack value it found, each with its provenance. It deliberately
+does **not** choose between them. Resolving those candidates is step 3.
+
+Only **tool** candidates carry a `rank` of `ci`, `manifest-explicit`, or
+`manifest-default`; path and stack candidates carry a `source` only.
+
+Candidate ranking is meaningful: `ci` outranks the others because CI config
+is what actually gates merges. A repo whose `pom.xml` declares no surefire
+plugin may still run `mvn -B verify` in its Jenkinsfile — that is the real
+test command.
+
 If the helper is unavailable, fall back to the manual detection checklist
 below.
 
@@ -108,6 +120,47 @@ already specified via config or `$ARGUMENTS`:
 - Defect tracker export path.
 - IDE entry-point list path.
 
+**Stack, paths, and tools** — resolve from the helper's `candidates` block.
+Ask **only where the evidence is ambiguous**. Confidence tracks evidence
+strength, not whether a question was asked:
+
+- **Exactly one candidate** → adopt it, recording its source. Ask nothing.
+- **Two or more candidates** → present them with their sources (and ranks,
+  for tools) and ask which one to record. For `tools.test_runner`, ask
+  specifically which command CI gates on.
+- **Zero candidates** → record `{ "command": null, "source": "not-collected",
+  "confidence": null }`. Offer the user the chance to supply the command, but
+  **do not invent one** and do not guess from the language.
+
+`tools.*.confidence` is then derived from the rank of the adopted candidate,
+not from how many candidates existed or whether the user answered a question:
+
+| Rank of adopted candidate | `confidence` |
+|---|---|
+| `ci` — the command CI actually runs | `HIGH` |
+| `manifest-explicit` — a declared script, plugin, or target | `MEDIUM` |
+| `manifest-default` — inferred from a manifest merely existing | `LOW` |
+| supplied by the user when no candidate existed | `HIGH` |
+| no command resolved | `null` |
+
+A lone candidate is **not** automatically `HIGH`. `mvn test`, offered only
+because a `pom.xml` exists, is a `manifest-default` guess and records as
+`LOW` whether or not it was the only option. That value becomes an
+`allowed-tools` entry downstream, so it must not claim more certainty than
+its evidence supports.
+
+Example of the ambiguous case:
+
+```
+Two test commands found for this codebase:
+  a) mvn -B verify   (Jenkinsfile:4 — runs in CI)   (recommended)
+  b) mvn test        (pom.xml default)
+Which one should agents run?
+```
+
+`stack.*` and `paths.*` follow the same three rules but are recorded as
+plain values — `null` when unresolved, never `""`.
+
 For any input the user does not provide, set the value to `null` and note it
 in `workflow.json.notes` as `"<input>: not-collected (user declined | not available)"`.
 **Do not invent paths.** `not-collected` is a first-class value.
@@ -122,6 +175,14 @@ values. Include:
 - All scope fields from step 3.
 - `weights.*` — from config if present, else template defaults.
 - `inputs.*` — absolute or repo-relative paths, or `null`.
+- `stack.*` — resolved language, backend, frontend, database, package
+  manager. `null` for anything unresolved.
+- `paths.*` — resolved src, test, migrations roots. `null` for anything
+  unresolved.
+- `tools.*` — `test_runner`, `build`, `lint`, each
+  `{ command, source, confidence }`. `tools.*.command` is what downstream
+  tooling turns into `allowed-tools` entries, so an unresolved command must
+  be `null` with `source: "not-collected"` — never a plausible guess.
 
 Validate before writing:
 - `qa_scope.coverage_targets.*` ∈ [0, 1].
@@ -129,6 +190,10 @@ Validate before writing:
 - `weights.security_composite.*` sum to 1.0; same for `qa_composite.*`.
 - `security_scope.risk_tolerance` ∈ {`low`, `medium`, `high`}.
 - Every `inputs.*` path — if non-null — exists on disk.
+- Every `tools.*` entry has all three of `command`, `source`, `confidence`.
+- Every `tools.*.confidence` is `HIGH`, `MEDIUM`, `LOW`, or `null`; `null`
+  only when `command` is `null`.
+- Every non-null `paths.*` value exists on disk.
 
 If validation fails, surface the specific field and ask the user to correct.
 Do not write a half-valid file.
@@ -166,10 +231,11 @@ evidence/
 │   └── environments/
 ├── risk/
 ├── reports/
-└── generate/
-    ├── capability-contexts/
-    ├── spec-seeds/
-    └── handoff/
+├── generate/
+│   ├── capability-contexts/
+│   ├── spec-seeds/
+│   └── handoff/
+└── scaffold/
 ```
 
 Add an `evidence/.gitignore` containing a single line: `!.gitkeep`
@@ -199,8 +265,11 @@ Before declaring the phase complete, verify:
 2. `evidence/workflow.json` exists with `phases.init.status = "completed"`.
 3. Every `inputs.*` value is either an existing path or explicit `null`.
 4. Every `null` input has a matching entry in `workflow.json.notes`.
-5. All evidence subdirectories from step 6 exist.
-6. No business-domain assumptions were written into `context.json`
+5. Every `tools.*` entry is either a command with a `source` and a
+   `confidence`, or an explicit `{ "command": null, "source":
+   "not-collected", "confidence": null }`. No fabricated commands.
+6. All evidence subdirectories from step 6 exist.
+7. No business-domain assumptions were written into `context.json`
    (capability discovery is reserved for `/scan` and `/discover`).
 
 If any gate fails, fix before returning control to the user. Do not advance

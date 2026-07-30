@@ -16,12 +16,13 @@ compose cleanly into shell pipelines and into command prompts.
 
 | Script | Used by | Purpose |
 |---|---|---|
-| `detect-stack` | `/init` | Read-only stack detection: languages, manifests, CI, frontend, DB dep, coverage-report candidates + adaptation hints. |
+| `detect-stack` | `/init` | Read-only stack detection: languages, manifests, CI, frontend, DB dep, coverage-report candidates, adaptation hints, plus ranked tool / path / stack candidates for `/init` to resolve. |
 | `list-manifests` | `/scan` (SS2) | Enumerate every dependency manifest with size + sha1. |
 | `parse-coverage` | `/scan` (QS2) | JaCoCo / Cobertura (incl. coverlet) / Istanbul / Go cover → uniform per-package JSON. |
 | `find-secrets` | `/scan` (SS1) | Regex scan for hard-coded credentials; emits redacted snippets with HIGH/MEDIUM/LOW confidence. |
 | `git-churn` | `/discover` (D6a) / `/assess` | Per-file commits over a window, normalized to repo median, tiered `high/medium/low`. |
 | `validate-evidence` | `/finish` | Mechanical portion of the 14-point acceptance check. |
+| `check-prompt-refs` | repo maintenance | Verify every `context.json → path` reference in `commands/*.md` resolves against `context.schema.json`. Python only — no shims. |
 
 ## Invocation examples
 
@@ -33,6 +34,7 @@ scripts/bash/parse-coverage.sh --report coverage/coverage-final.json --format is
 scripts/bash/find-secrets.sh --root ./
 scripts/bash/git-churn.sh --root ./ --months 6
 scripts/bash/validate-evidence.sh --evidence-dir evidence --strict
+python scripts/python/check_prompt_refs.py
 ```
 
 ```powershell

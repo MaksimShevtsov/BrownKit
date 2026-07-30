@@ -14,7 +14,7 @@
       "required": ["init", "scan", "discover", "report", "assess", "generate", "finish"],
       "additionalProperties": false,
       "patternProperties": {
-        "^(init|scan|discover|report|assess|generate|finish)$": { "$ref": "#/$defs/phase" }
+        "^(init|scan|discover|report|assess|generate|scaffold|finish)$": { "$ref": "#/$defs/phase" }
       }
     },
     "adaptations": {

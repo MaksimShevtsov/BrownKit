@@ -96,7 +96,8 @@ Build a **file-to-capability mapping** using:
 - S1 package ownership.
 - S2 entity-to-table mapping (for files that own entities).
 
-Target: **≥ 90%** of significant files mapped to a capability.
+Target: **≥ `--min-coverage`** of significant files mapped to a capability
+if that flag was supplied, else **≥ 90%**.
 
 For every **orphan** file (mapped to nothing):
 
@@ -107,9 +108,40 @@ For every **orphan** file (mapped to nothing):
 4. If it is unreferenced by any entry point or test → mark `dead_code` with
    evidence (no callers, no tests, git last-modified date).
 
-Output: `evidence/discovery/coverage.md` — file-to-capability mapping,
-orphan resolutions, and architectural risks (e.g., "8% orphan rate in
-`payments/` suggests hidden capability or abandoned experiment").
+Outputs — **both** are required:
+
+1. `evidence/discovery/coverage.md` — file-to-capability mapping, orphan
+   resolutions, and architectural risks (e.g., "8% orphan rate in
+   `payments/`" suggests hidden capability or abandoned experiment). It must
+   contain a line in exactly this form, so acceptance validation can find
+   the figure among the other percentages in the document:
+
+   ```
+   File-to-capability coverage: 93.4%
+   ```
+
+2. `evidence/discovery/coverage-summary.json` — the same figures, machine
+   readable:
+
+   ```json
+   {
+     "schema_version": "1.0",
+     "actual": 0.934,
+     "target": 0.90,
+     "mapped": 441,
+     "significant": 472,
+     "orphans": 24,
+     "dead_code": 7
+   }
+   ```
+
+   `actual` and `target` are fractions in `[0,1]`. `target` is `--min-coverage`
+   when that flag was supplied, else `0.90` — never hardcode `0.90` here once
+   the user has overridden it, or the sidecar and the acceptance check
+   contradict the user's own flag. `/finish` acceptance validation prefers
+   this file and falls back to the labeled line above. Reporting `orphans`
+   is what lets validation distinguish an honestly reported sub-target
+   coverage from an unexplained failure.
 
 If coverage < 90% after orphan resolution, **do not force to 90%** — report
 the actual percentage and identify the specific gaps that blocked the target.
@@ -424,6 +456,7 @@ Both are valid continuations; `/report` is non-blocking and re-runnable.
 
 - `evidence/discovery/analysis.md`
 - `evidence/discovery/coverage.md`
+- `evidence/discovery/coverage-summary.json`
 - `evidence/discovery/l1-capabilities.md`
 - `evidence/discovery/l2-capabilities.md`
 - `evidence/discovery/domain-model.md`
@@ -437,8 +470,11 @@ Both are valid continuations; `/report` is non-blocking and re-runnable.
 2. Every L1 has a stable `BC-NNN` ID and ≥ 1 L2 (or is documented as a
    single-operation capability with explicit rationale).
 3. Every entity has exactly one owner — or a conflict is surfaced.
-4. File-to-capability coverage ≥ 90% — or the actual percentage is reported
-   with the specific gaps preventing it.
+4. File-to-capability coverage ≥ target (`--min-coverage` if supplied, else
+   90%) — or the actual percentage is reported with the specific gaps
+   preventing it. Both `coverage.md` (with its
+   labeled `File-to-capability coverage: N%` line) and
+   `coverage-summary.json` exist.
 5. Every L1 and L2 has a `security_context` block — even if fields are `null`.
 6. Every L1 and L2 has a `qa_context` block with explicit `"not-collected"`
    markers where signals are absent.

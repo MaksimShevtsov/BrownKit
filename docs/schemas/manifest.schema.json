@@ -13,7 +13,7 @@
       "type": "object",
       "required": ["init", "scan", "discover", "report", "assess", "generate", "finish"],
       "patternProperties": {
-        "^(init|scan|discover|report|assess|generate|finish)$": {
+        "^(init|scan|discover|report|assess|generate|scaffold|finish)$": {
           "type": "object",
           "required": ["status", "artifacts"],
           "properties": {

@@ -8,6 +8,7 @@
     "report":   { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] },
     "assess":   { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] },
     "generate": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] },
+    "scaffold": { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] },
     "finish":   { "status": "pending", "started_at": null, "completed_at": null, "artifacts": [] }
   },
   "adaptations": {

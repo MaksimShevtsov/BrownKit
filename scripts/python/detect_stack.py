@@ -109,8 +109,75 @@ IGNORED_DIRS = {
     ".mypy_cache", ".pytest_cache", "vendor", "bin", "obj",
 }
 
+# Command classification -----------------------------------------------------
 
-def _walk(root: Path, max_depth: int = 6):
+TEST_TOKENS  = ("verify", "test", "pytest", "jest", "vitest", "check")
+BUILD_TOKENS = ("package", "build", "compile", "assemble", "publish")
+LINT_TOKENS  = ("lint", "ruff", "black", "flake8", "eslint", "checkstyle",
+                "golangci", "format", "fmt")
+
+# Files whose shell steps are the authoritative source for tool commands.
+CI_FILE_NAMES = ("Jenkinsfile", ".gitlab-ci.yml", "azure-pipelines.yml",
+                 "azure-pipelines.yaml", ".travis.yml")
+CI_FILE_GLOBS = (".github/workflows/*.yml", ".github/workflows/*.yaml",
+                 ".circleci/config.yml", ".buildkite/pipeline.yml")
+
+# Shell invocations inside CI configs: `sh 'cmd'`, `run: cmd`, `- cmd`.
+CI_STEP = re.compile(
+    r"""(?:sh\s+['"](?P<sh>[^'"]+)['"]"""
+    r"""|run:\s*(?P<run>[^\n#]+)"""
+    r"""|^\s*-\s+(?P<bare>(?:mvn|gradle|\./gradlew|npm|yarn|pnpm|pytest|go|dotnet|make|ruff|eslint)\s[^\n#]+))""",
+    re.MULTILINE,
+)
+
+# GitHub Actions `run: |` / `run: >` block-scalar header. The step body is
+# every following line indented deeper than this header line. `indent`
+# covers a leading YAML list dash too ("- run: |"), a common step form.
+RUN_BLOCK_HEADER = re.compile(
+    r"^(?P<indent>[ \t]*(?:-[ \t]+)?)run:[ \t]*(?:\||\|-|>|>-)[ \t]*(?:#.*)?$",
+    re.MULTILINE,
+)
+
+# Jenkins `sh '''…'''` / `sh """…"""` multi-line shell steps.
+SH_TRIPLE = re.compile(
+    r"""sh\s+(?:'''(?P<sh3q>.*?)'''|\"\"\"(?P<sh3dq>.*?)\"\"\")""",
+    re.DOTALL,
+)
+
+# Maven/Gradle/npm defaults used only when nothing more specific is found.
+MANIFEST_DEFAULTS = {
+    "pom.xml":       {"test_runner": "mvn test", "build": "mvn -DskipTests package"},
+    "build.gradle":  {"test_runner": "./gradlew test", "build": "./gradlew assemble"},
+    "go.mod":        {"test_runner": "go test ./...", "build": "go build ./..."},
+}
+
+# Conventional source / test / migration layouts per ecosystem marker.
+PATH_LAYOUTS = {
+    "pom.xml": {"src": "src/main/java", "test": "src/test/java",
+                "migrations": "src/main/resources/db/migration"},
+    "go.mod":  {"src": ".", "test": ".", "migrations": "migrations"},
+}
+GENERIC_LAYOUTS = {
+    "src":        ("src", "app", "lib"),
+    "test":       ("tests", "test", "spec", "__tests__"),
+    "migrations": ("migrations", "db/migrate", "alembic/versions", "prisma/migrations"),
+}
+
+BACKEND_DEPS = {
+    "spring-boot": "spring-boot-starter", "quarkus": "quarkus",
+    "express": "\"express\"", "fastify": "\"fastify\"", "nestjs": "@nestjs/core",
+    "fastapi": "fastapi", "flask": "Flask", "django": "Django",
+    "gin": "gin-gonic/gin", "echo": "labstack/echo", "chi": "go-chi/chi",
+}
+DATABASE_DEPS = {
+    "postgres": ("postgresql", "psycopg2", "\"pg\"", "lib/pq"),
+    "mysql":    ("mysql-connector", "mysql2", "mariadb"),
+    "mongodb":  ("mongodb", "mongoose", "pymongo"),
+    "sqlite":   ("sqlite3", "sqlite"),
+}
+
+
+def _walk(root: Path):
     root = root.resolve()
     for path in root.rglob("*"):
         if any(part in IGNORED_DIRS for part in path.relative_to(root).parts):
@@ -226,6 +293,319 @@ def _architecture_hint(root: Path, manifests: list[dict]) -> str:
     return "unknown"
 
 
+def _classify_command(cmd: str) -> str | None:
+    """Bucket a shell command into a tool category, or None if unrecognised.
+
+    Matches whole segments, not substrings. Bare substring matching gets this
+    wrong in both directions: "-DskipTests" contains "test" (so
+    "mvn -DskipTests package" reads as a test command) and "-Dbuild.profile"
+    contains "build" (so "mvn verify -Dbuild.profile=ci" reads as a build).
+    Splitting on non-alphanumerics makes both read correctly, because the
+    flag becomes "dskiptests" / "dbuild" rather than "test" / "build".
+    """
+    words = set(re.split(r"[^a-z0-9]+", cmd.lower()))
+    for token in LINT_TOKENS:          # lint before test: "ruff check" is lint
+        if token in words:
+            return "lint"
+    for token in TEST_TOKENS:
+        if token in words:
+            return "test_runner"
+    for token in BUILD_TOKENS:
+        if token in words:
+            return "build"
+    return None
+
+
+def _ci_files(root: Path) -> list[Path]:
+    found: list[Path] = []
+    for name in CI_FILE_NAMES:
+        candidate = root / name
+        if candidate.is_file():
+            found.append(candidate)
+    for pattern in CI_FILE_GLOBS:
+        found.extend(p for p in root.glob(pattern) if p.is_file())
+    return found
+
+
+def _command_lines(block: str, first_line: int) -> list[tuple[str, int]]:
+    """Split a multi-line shell block into logical (command, line) pairs.
+
+    A line ending in a bare trailing backslash joins the next physical line
+    into the same logical command, attributed to the line the command
+    started on. Blank lines and lines whose first non-space character is
+    '#' are not commands.
+    """
+    out: list[tuple[str, int]] = []
+    lines = block.split("\n")
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip()
+        if not stripped or stripped.startswith("#"):
+            i += 1
+            continue
+        start_line = first_line + i
+        parts = [stripped]
+        while parts[-1].endswith("\\"):
+            parts[-1] = parts[-1][:-1].rstrip()
+            i += 1
+            if i >= len(lines):
+                break
+            parts.append(lines[i].strip())
+        cmd = " ".join(p for p in parts if p)
+        if cmd:
+            out.append((cmd, start_line))
+        i += 1
+    return out
+
+
+def _block_scalar_body(text: str, header) -> tuple[str, int, int]:
+    """Return (body_text, body_first_line, body_end_pos) for the YAML block
+    scalar that follows a `run: |`/`run: >` header match.
+
+    The body is every following line indented deeper than the header line
+    (blank lines are included so an interior blank line doesn't end it
+    early); the first line at or below the header's indentation ends it.
+    """
+    header_indent = len(header.group("indent").expandtabs())
+    pos = header.end() + 1  # skip the newline ending the header line
+    body_first_line = text[:pos].count("\n") + 1
+    body_lines: list[str] = []
+    while pos <= len(text):
+        nl = text.find("\n", pos)
+        line = text[pos:] if nl == -1 else text[pos:nl]
+        if line.strip() != "":
+            leading_ws = line[:len(line) - len(line.lstrip(" \t"))].expandtabs()
+            if len(leading_ws) <= header_indent:
+                break
+        body_lines.append(line)
+        if nl == -1:
+            pos = len(text)
+            break
+        pos = nl + 1
+    return "\n".join(body_lines), body_first_line, pos
+
+
+def _blank_span(text: str, start: int, end: int) -> str:
+    """Replace text[start:end] with spaces (preserving newlines and length)
+    so a later pass can't double-match content already extracted."""
+    end = min(end, len(text))
+    blanked = "".join(ch if ch == "\n" else " " for ch in text[start:end])
+    return text[:start] + blanked + text[end:]
+
+
+def _commands_in_text(text: str, rel: str) -> list[dict]:
+    """Extract shell commands with file:line provenance from one CI file's text.
+
+    Handles three forms: a GitHub Actions `run: |`/`run: >` block scalar
+    (one candidate per command line in the body), a Jenkins
+    `sh '''…'''` / `sh \"\"\"…\"\"\"` multi-line block (same), and everything
+    else via the single-line CI_STEP patterns. Spans already consumed by the
+    first two are blanked out before the single-line scan runs, so nothing
+    is double-counted or left as a bare "|" fragment.
+    """
+    out: list[dict] = []
+    consumed: list[tuple[int, int]] = []
+
+    for header in RUN_BLOCK_HEADER.finditer(text):
+        body, first_line, end_pos = _block_scalar_body(text, header)
+        for cmd, ln in _command_lines(body, first_line):
+            out.append({"command": cmd, "source": f"{rel}:{ln}"})
+        consumed.append((header.start(), end_pos))
+
+    for match in SH_TRIPLE.finditer(text):
+        if match.group("sh3q") is not None:
+            body, body_pos = match.group("sh3q"), match.start("sh3q")
+        else:
+            body, body_pos = match.group("sh3dq"), match.start("sh3dq")
+        first_line = text[:body_pos].count("\n") + 1
+        for cmd, ln in _command_lines(body, first_line):
+            out.append({"command": cmd, "source": f"{rel}:{ln}"})
+        consumed.append((match.start(), match.end()))
+
+    residual = text
+    for start, end in consumed:
+        residual = _blank_span(residual, start, end)
+
+    for match in CI_STEP.finditer(residual):
+        raw = match.group("sh") or match.group("run") or match.group("bare") or ""
+        cmd = raw.strip()
+        if not cmd:
+            continue
+        line = residual[:match.start()].count("\n") + 1
+        out.append({"command": cmd, "source": f"{rel}:{line}"})
+
+    return out
+
+
+def _ci_commands(root: Path) -> list[dict]:
+    """Every shell command found in CI configs, with file:line provenance."""
+    out: list[dict] = []
+    for path in _ci_files(root):
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        rel = str(path.relative_to(root)).replace("\\", "/")
+        out.extend(_commands_in_text(text, rel))
+    return out
+
+
+def _tool_candidates(root: Path, manifests: list[dict]) -> dict:
+    buckets: dict[str, list[dict]] = {"test_runner": [], "build": [], "lint": []}
+    seen: set[tuple[str, str]] = set()
+
+    def add(category: str, command: str, source: str, rank: str) -> None:
+        key = (category, command)
+        if key in seen:
+            return
+        seen.add(key)
+        buckets[category].append({"command": command, "source": source, "rank": rank})
+
+    # Rank 1 - CI config: what actually gates merges.
+    for entry in _ci_commands(root):
+        category = _classify_command(entry["command"])
+        if category:
+            add(category, entry["command"], entry["source"], "ci")
+
+    # Rank 2 - explicit manifest scripts.
+    for m in manifests:
+        path = root / m["path"]
+        if m["pattern"] == "package.json":
+            try:
+                scripts = json.loads(path.read_text(encoding="utf-8")).get("scripts", {})
+            except (OSError, json.JSONDecodeError):
+                continue
+            for name, body in scripts.items():
+                category = _classify_command(name) or _classify_command(str(body))
+                if category:
+                    add(category, f"npm run {name}", f"{m['path']} -> scripts.{name}",
+                        "manifest-explicit")
+        elif m["pattern"] == "pom.xml":
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if "maven-surefire-plugin" in text:
+                add("test_runner", "mvn test", f"{m['path']} -> surefire",
+                    "manifest-explicit")
+        elif m["pattern"] in ("pyproject.toml", "setup.cfg"):
+            try:
+                lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+            except OSError:
+                continue
+            # Line-prefix scan, not a TOML parse: tomllib is 3.11+.
+            for raw in lines:
+                stripped = raw.strip()
+                if stripped.startswith(("[tool.pytest", "[tool:pytest")):
+                    add("test_runner", "pytest", f"{m['path']} -> {stripped}",
+                        "manifest-explicit")
+                elif stripped.startswith(("[tool.ruff", "[tool.black", "[flake8]")):
+                    tool = stripped.strip("[]").split(".")[-1].split("]")[0]
+                    add("lint", f"{tool} .", f"{m['path']} -> {stripped}",
+                        "manifest-explicit")
+        elif m["pattern"] in ("*.csproj", "*.sln", "*.fsproj"):
+            add("test_runner", "dotnet test", m["path"], "manifest-explicit")
+            add("build", "dotnet build", m["path"], "manifest-explicit")
+
+    makefile = root / "Makefile"
+    if makefile.is_file():
+        try:
+            for lineno, raw in enumerate(
+                makefile.read_text(encoding="utf-8", errors="ignore").splitlines(), 1
+            ):
+                if ":" not in raw or raw.startswith(("\t", " ", "#", ".")):
+                    continue
+                target = raw.split(":", 1)[0].strip()
+                category = _classify_command(target)
+                if category:
+                    add(category, f"make {target}", f"Makefile:{lineno}",
+                        "manifest-explicit")
+        except OSError:
+            pass
+
+    # Rank 3 - manifest presence defaults.
+    for m in manifests:
+        for marker, defaults in MANIFEST_DEFAULTS.items():
+            if m["pattern"] == marker or m["path"].endswith(marker):
+                for category, command in defaults.items():
+                    add(category, command, f"{m['path']} (default)", "manifest-default")
+
+    order = {"ci": 0, "manifest-explicit": 1, "manifest-default": 2}
+    for category in buckets:
+        buckets[category].sort(key=lambda c: order[c["rank"]])
+    return buckets
+
+
+def _path_candidates(root: Path, manifests: list[dict]) -> dict:
+    out: dict[str, list[dict]] = {"src": [], "test": [], "migrations": []}
+    seen: set[tuple[str, str]] = set()
+
+    def add(kind: str, rel: str, source: str) -> None:
+        if (kind, rel) in seen or not (root / rel).exists():
+            return
+        seen.add((kind, rel))
+        out[kind].append({"path": rel, "source": source})
+
+    for m in manifests:
+        layout = PATH_LAYOUTS.get(m["pattern"])
+        if layout:
+            base = Path(m["path"]).parent
+            for kind, rel in layout.items():
+                joined = str(base / rel).replace("\\", "/").lstrip("./")
+                add(kind, joined, f"{m['path']} (convention)")
+
+    for kind, names in GENERIC_LAYOUTS.items():
+        for name in names:
+            add(kind, name, "directory scan")
+    return out
+
+
+def _stack_candidates(root: Path, manifests: list[dict],
+                      frontend: dict, has_db: bool) -> dict:
+    out: dict[str, list[dict]] = {
+        "language": [], "backend": [], "frontend": [],
+        "database": [], "package_manager": [],
+    }
+    seen: set[tuple[str, str]] = set()
+
+    def add(kind: str, value: str, source: str) -> None:
+        if (kind, value) in seen:
+            return
+        seen.add((kind, value))
+        out[kind].append({"value": value, "source": source})
+
+    for m in manifests:
+        add("language", m["language"], m["path"])
+        pm = {"pom.xml": "maven", "package.json": "npm", "go.mod": "go-modules",
+              "Cargo.toml": "cargo", "composer.json": "composer",
+              "Gemfile": "bundler"}.get(m["pattern"])
+        if pm is None and m["pattern"].startswith("build.gradle"):
+            pm = "gradle"
+        if pm is None and m["pattern"] in ("pyproject.toml", "requirements.txt"):
+            pm = "pip"
+        if pm:
+            add("package_manager", pm, m["path"])
+
+    for name in frontend.get("frameworks", []):
+        add("frontend", name, frontend.get("source_manifest") or "directory scan")
+
+    for m in manifests:
+        try:
+            text = (root / m["path"]).read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for name, needle in BACKEND_DEPS.items():
+            if needle in text:
+                add("backend", name, m["path"])
+        for name, needles in DATABASE_DEPS.items():
+            if any(n in text for n in needles):
+                add("database", name, m["path"])
+
+    if has_db and not out["database"]:
+        add("database", "not-collected", "DB dependency detected, vendor unresolved")
+    return out
+
+
 def detect(root: Path) -> dict:
     manifests = _find_manifests(root)
     languages = _language_mix(root)
@@ -239,6 +619,12 @@ def detect(root: Path) -> dict:
         "db_schema_analysis": "auto" if has_db_dep else "skip",
         "frontend_analysis":  "auto" if frontend["has_frontend"] else "skip",
         "coverage_source":    "report" if coverage else "proxy",
+    }
+
+    candidates = {
+        "tools": _tool_candidates(root, manifests),
+        "paths": _path_candidates(root, manifests),
+        "stack": _stack_candidates(root, manifests, frontend, has_db_dep),
     }
 
     return {
@@ -256,6 +642,7 @@ def detect(root: Path) -> dict:
             "has_db_dependency": has_db_dep,
         },
         "adaptations": adaptations,
+        "candidates": candidates,
     }
 
 
