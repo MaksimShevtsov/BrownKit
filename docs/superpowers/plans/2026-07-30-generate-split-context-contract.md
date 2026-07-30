@@ -481,7 +481,7 @@ In `templates/context.json`, insert after the `weights` block and before `"input
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `python -m unittest tests.test_context_schema -v`
-Expected: PASS — 8 tests
+Expected: PASS — 9 tests
 
 - [ ] **Step 7: Validate the template against its own schema**
 
@@ -1012,7 +1012,7 @@ Expected: a `candidates.tools.test_runner` array whose first entry is `{"command
 - [ ] **Step 8: Confirm the full suite is green**
 
 Run: `python -m unittest discover -s tests -v`
-Expected: PASS — 33 tests
+Expected: PASS — 34 tests
 
 - [ ] **Step 9: Commit**
 
@@ -1926,7 +1926,7 @@ Expected: guard exits 0 with `unresolved: 0`; line count between 330 and 400.
 - [ ] **Step 19: Run the full suite**
 
 Run: `python -m unittest discover -s tests -v`
-Expected: PASS — 54 tests
+Expected: PASS — 55 tests
 
 - [ ] **Step 20: Commit**
 
@@ -2295,7 +2295,7 @@ And amend acceptance gate 4 to read:
 - [ ] **Step 9: Run the full suite**
 
 Run: `python -m unittest discover -s tests -v`
-Expected: PASS — 61 tests
+Expected: PASS — 62 tests
 
 - [ ] **Step 10: Commit**
 
@@ -2627,7 +2627,7 @@ check-jsonschema --schemafile docs/schemas/workflow.schema.json templates/workfl
 python scripts/python/detect_stack.py --root docs/examples/sample-repo
 ```
 
-Expected: 73 tests pass; guard exits 0; both schema validations report `ok`; `detect-stack` shows `mvn -B verify` first in `candidates.tools.test_runner`.
+Expected: 74 tests pass; guard exits 0; both schema validations report `ok`; `detect-stack` shows `mvn -B verify` first in `candidates.tools.test_runner`.
 
 - [ ] **Step 11: Commit**
 
@@ -2671,6 +2671,6 @@ three read-only hook commands against five registered hooks."
 
 **Type consistency:** `_classify_command` returns the same three category strings (`test_runner`, `build`, `lint`) used as `candidates.tools` keys in Task 4, as `context.json.tools` keys in Task 2, and as `tools.*.command` references in Task 7. `rank` values (`ci`, `manifest-explicit`, `manifest-default`) are identical between Task 4's implementation and Task 5's prose. The run manifest's four keys (`plan`, `written`, `merged`, `skipped`) match across Tasks 7, 9, and 11. `_coverage_figure` returns a 4-tuple consumed positionally in exactly one place. `check`/`extract_refs`/`resolve` signatures match between Task 1's test and implementation.
 
-**Cumulative test counts** by task (informational — see Global Constraints): 10 → 18 → 18 → 33 → 33 → 41 → 54 → 54 → 61 → 73. Per module: `check_prompt_refs` 10, `context_schema` 8, `detect_stack` 15, `phase_registration` 8, `clients_template` 5, `generate_trimmed` 8, `coverage_criterion` 7, `docs_consistency` 12.
+**Cumulative test counts** by task (informational — see Global Constraints): 10 → 19 → 19 → 34 → 34 → 42 → 55 → 55 → 62 → 74. Per module: `check_prompt_refs` 10, `context_schema` 9, `detect_stack` 15, `phase_registration` 8, `clients_template` 5, `generate_trimmed` 8, `coverage_criterion` 7, `docs_consistency` 12.
 
 **Corrections applied during review:** the guard's initial count is 16, not 11 — verified by running the regex over `generate.md`. `project_name` at line 720 *is* a backtick span, so the guard catches it and Task 3 fixes all three of its references under guard coverage. And `resolve()` gained `$ref` support, without which Task 7's `tools.test_runner.command` references would have failed against Task 2's `$defs/tool` indirection.
