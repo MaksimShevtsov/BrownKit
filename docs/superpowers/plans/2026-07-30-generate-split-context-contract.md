@@ -572,8 +572,10 @@ Expected: exit code 0, `{"unresolved": 0, "findings": []}`
 
 - [ ] **Step 5: Verify no stale names remain**
 
-Run: `grep -rn "project_name\|compliance_targets\|security_context\." commands/`
-Expected: no output. (`security_context` as a *bare* word still appears legitimately in `discover.md` D6 and elsewhere as an evidence-artifact field name — the grep pattern requires a trailing dot to target only the `context.json` misuse.)
+Run: `grep -n "project_name\|compliance_targets\|security_context" commands/generate.md`
+Expected: no output — scoped to `generate.md`, the only file this task touches.
+
+Do **not** widen this grep to all of `commands/`. `security_context` is also the legitimate name of an *evidence-artifact* field, and a repo-wide search returns real, correct uses — `security_context.criticality` in `assess.md` and `security_context.data_sensitivity` in `validate.md`. Those describe the structure of `domain-model.md` output, not `context.json`, and must not be changed.
 
 - [ ] **Step 6: Commit**
 
