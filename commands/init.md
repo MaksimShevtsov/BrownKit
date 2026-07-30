@@ -231,10 +231,11 @@ evidence/
 │   └── environments/
 ├── risk/
 ├── reports/
-└── generate/
-    ├── capability-contexts/
-    ├── spec-seeds/
-    └── handoff/
+├── generate/
+│   ├── capability-contexts/
+│   ├── spec-seeds/
+│   └── handoff/
+└── scaffold/
 ```
 
 Add an `evidence/.gitignore` containing a single line: `!.gitkeep`

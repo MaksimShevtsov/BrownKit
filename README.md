@@ -78,7 +78,7 @@ evidence/
 ├── risk/        unified-risk-map
 ├── reports/     stakeholder, architect, dev, sdet, (security)
 ├── generate/    capability-contexts/, spec-seeds/, handoff/<team>/
-└── scaffold/    run-manifest, client-integrations, instructions, prompts/, hooks/
+└── scaffold/    run-manifest, instructions, prompts/, hooks/
 ```
 
 ## Methodology

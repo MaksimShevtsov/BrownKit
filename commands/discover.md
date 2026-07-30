@@ -96,7 +96,8 @@ Build a **file-to-capability mapping** using:
 - S1 package ownership.
 - S2 entity-to-table mapping (for files that own entities).
 
-Target: **≥ 90%** of significant files mapped to a capability.
+Target: **≥ `--min-coverage`** of significant files mapped to a capability
+if that flag was supplied, else **≥ 90%**.
 
 For every **orphan** file (mapped to nothing):
 
@@ -134,10 +135,13 @@ Outputs — **both** are required:
    }
    ```
 
-   `actual` and `target` are fractions in `[0,1]`. `/finish` acceptance
-   validation prefers this file and falls back to the labeled line above.
-   Reporting `orphans` is what lets validation distinguish an honestly
-   reported sub-target coverage from an unexplained failure.
+   `actual` and `target` are fractions in `[0,1]`. `target` is `--min-coverage`
+   when that flag was supplied, else `0.90` — never hardcode `0.90` here once
+   the user has overridden it, or the sidecar and the acceptance check
+   contradict the user's own flag. `/finish` acceptance validation prefers
+   this file and falls back to the labeled line above. Reporting `orphans`
+   is what lets validation distinguish an honestly reported sub-target
+   coverage from an unexplained failure.
 
 If coverage < 90% after orphan resolution, **do not force to 90%** — report
 the actual percentage and identify the specific gaps that blocked the target.
@@ -466,8 +470,9 @@ Both are valid continuations; `/report` is non-blocking and re-runnable.
 2. Every L1 has a stable `BC-NNN` ID and ≥ 1 L2 (or is documented as a
    single-operation capability with explicit rationale).
 3. Every entity has exactly one owner — or a conflict is surfaced.
-4. File-to-capability coverage ≥ 90% — or the actual percentage is reported
-   with the specific gaps preventing it. Both `coverage.md` (with its
+4. File-to-capability coverage ≥ target (`--min-coverage` if supplied, else
+   90%) — or the actual percentage is reported with the specific gaps
+   preventing it. Both `coverage.md` (with its
    labeled `File-to-capability coverage: N%` line) and
    `coverage-summary.json` exist.
 5. Every L1 and L2 has a `security_context` block — even if fields are `null`.

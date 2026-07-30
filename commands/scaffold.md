@@ -40,16 +40,23 @@ present and resolved.
 ## Degraded mode
 
 When `context.json.tools`, `paths`, or `stack` are absent — a pre-v1.1.0
-evidence tree, or `/init` could not resolve them — run in **degraded mode**:
+evidence tree, or `/init` could not resolve them — run in **degraded mode**.
+Degraded mode never drops a selected artifact; it generates every one and
+substitutes an explicit placeholder wherever the missing evidence would
+otherwise be used:
 
-- Emit universal `.agents/skills/` output only for artifacts that do not
-  need tool commands.
+- Emit universal `.agents/skills/` output for every selected artifact,
+  including ones that would normally need tool commands — do not skip them.
 - Reduce every `allowed-tools` value to its base entry with **no**
-  tool-derived additions.
-- Where a skill body would name a test runner, write
-  `"test command: not-collected — set context.json.tools.test_runner"`.
+  tool-derived additions (the tool-derived append table in Phase 4 requires
+  `context.json.tools`, which is absent).
+- Wherever a skill or prompt body would otherwise name a tool command
+  (test runner, build, lint), write
+  `"test command: not-collected — set context.json.tools.test_runner"` (or
+  the equivalent field name) instead of inventing one.
 - Add a `skipped` entry to the run manifest for every artifact family
-  affected, naming the missing field.
+  affected, naming the missing `context.json` field — this records the
+  degradation; it does not mean the artifact itself was omitted.
 
 Never guess a command in degraded mode.
 
@@ -99,11 +106,6 @@ Hooks:
   [ ] session-start          (inject project summary into every session)
   [ ] pre-tool-use           (gate dangerous operations)
   [ ] post-tool-use          (run lint/test after file writes)
-
-Evidence packages:
-  [x] Capability-context packages  (Part A)
-  [x] Security-aware prompts       (Part B — security evidence, not agent prompts)
-  [x] Spec seeds                   (Part C)
 ```
 
 Default selections (shown with `[x]`) are applied if the user confirms
@@ -153,11 +155,19 @@ Read `evidence/scaffold/run-manifest.json` if it exists.
 **No manifest** — this is a first run, or a pre-v1.1.0 `/generate` produced
 the files on disk. Treat every existing file as *unmanaged*: overwrite it
 when the plan produces the same path, note the overwrite in the summary, and
-**never delete it**. Cleanup applies only to paths BrownKit recorded itself.
+**never delete it**. Cleanup applies only to paths BrownKit recorded itself
+— and a path that existed on disk before BrownKit's own first write to it
+is never one of those: record it in the run manifest's `merged` list (with a
+note such as `"pre-existing, overwritten"`), not in `written`. **`written` is
+create-only; anything BrownKit did not bring into existence is `merged`.**
+This is what keeps a later run from ever offering to delete a file the user
+hand-authored.
 
 **Manifest with `completed_at: null`** — the prior run was interrupted.
 Present the count of paths already written and ask: resume (skip artifacts
-already complete) or restart clean. Do not assume either.
+already complete) or restart clean. Do not assume either — unless
+`$ARGUMENTS` contains `--resume`, in which case skip the question and
+resume directly.
 
 **Manifest with a `completed_at` timestamp** — compute the difference
 between the prior `written` set and what the new plan will produce:
@@ -174,6 +184,20 @@ anything**. Deleting files in `.claude/` or `.github/` without confirmation
 is not acceptable, even when BrownKit wrote them.
 
 # Phase 3 — Universal generation
+
+## Open the run manifest
+
+Before writing any artifact, create `evidence/scaffold/run-manifest.json`
+with `started_at` set to the current ISO-8601 UTC timestamp, `completed_at:
+null`, and `plan` populated from the confirmed Phase 1 planning summary
+(`plan.artifacts`, `plan.clients`, `plan.declined`). As each artifact is
+written, merged, or skipped through Phases 3 and 4, append the corresponding
+entry to `written`, `merged`, or `skipped` in this same file rather than
+holding them in memory until the end — this is what makes the
+`completed_at: null` state in Phase 2 reachable on a later run: an
+interruption mid-Phase-3/4 leaves a manifest on disk with a partial
+`written`/`merged`/`skipped` set and a null `completed_at`. Phase 5 sets
+`completed_at` once every write has succeeded; it does not create the file.
 
 ## Skill output format
 
@@ -361,7 +385,9 @@ for deeper entity detail rather than repeating it inline.
 When writing client copies in Phase 4, the generator for each client
 places this file at the native path its `templates/clients.yml` entry
 declares: `instructions_path` gives the location; `instructions_mode`
-governs how it is written — `write` creates or overwrites the file;
+governs how it is written — `write` creates the file if absent (recorded in
+`written`) or overwrites it if it was already on disk before this write
+(recorded in `merged`, per the create-only rule in Phase 2 and Phase 4);
 `prepend-section` inserts a `# {Project Name}` section at the top of an
 existing file and never overwrites it (recorded in `merged`, per Phase 4).
 
@@ -391,10 +417,19 @@ Each prompt must:
 Client-native prompt paths are resolved from each client's `prompts_path` in
 `templates/clients.yml`. When a client's entry omits `prompts_path`, it has
 no separate prompt location — the prompt is delivered as an ordinary skill
-copy at that client's `skills_path` instead. Set `disable-model-invocation:
-true` on that copy only for clients whose `extra_frontmatter` declares the
-field; for every other client, the copy carries exactly the fields its own
-entry lists, and nothing more.
+copy at that client's `skills_path` instead (for `mdc`-format clients this
+still means a `.mdc` file per the Phase 4 transform, not a `SKILL.md`).
+
+A prompt is a user-initiated artifact, never one the model should invoke on
+its own — so every prompt copy, wherever it lands, must set
+`disable-model-invocation: true` **if and only if** that client's
+`extra_frontmatter` declares the field. This is a property of the copy being
+a prompt, independent of whether it landed at `prompts_path` or, absent
+that, at `skills_path`. `claude` declares the field and uses the same path
+for both, so its prompt copies get `disable-model-invocation: true` — that
+is what stops a generated prompt from being auto-invoked as if it were an
+ordinary skill. Clients whose entry does not declare the field receive
+exactly the fields their own entry lists, and nothing more.
 
 ## Hooks (Phase 3)
 
@@ -414,7 +449,7 @@ Client-native hook paths are resolved from each client's `hooks` and
 the target file. Clients with no `hooks` entry do not support hook
 installation: skip that client for every hook and note it in the summary.
 
-# Part E — Subagents and Project Agent
+## Subagents and project agent
 
 *Skip if `--no-agents`.*
 
@@ -543,8 +578,17 @@ Load `templates/clients.yml`. For each selected client, resolve its entry
    `.prompt.md` at the client's `prompts_path`. `mdc` (cursor) is not
    SKILL.md-shaped: emit a single `.mdc` file with `globs` and
    `alwaysApply` frontmatter and the body beneath.
-5. Record every written path in the run manifest's `written` list, tagged
-   with the client id.
+5. Before recording, check whether the path already existed on disk prior
+   to this write. If it did **not** exist, record it in the run manifest's
+   `written` list, tagged with the client id. If it **did** already exist —
+   most commonly an `instructions_mode: write` target such as
+   `.github/copilot-instructions.md`, `.gemini/GEMINI.md`, `.kiro/AGENTS.md`,
+   `.agents/AGENTS.md`, or `.cursor/rules/project.mdc` that the user
+   hand-authored — record it in `merged` instead, with a note such as
+   `"pre-existing, overwritten"`. `written` is create-only: a later run's
+   Phase 2 diff treats everything in `written` as a deletion candidate when
+   the new plan drops it, and a pre-existing file must never be offered up
+   for deletion.
 
 For `instructions_mode: prepend-section`, insert a `# {Project Name}`
 section at the top of the existing file and record the path in `merged`,
@@ -600,7 +644,11 @@ entry there is a real hazard, not a cosmetic defect.
 
 # Phase 5 — Manifest, workflow, and summary
 
-## Write `evidence/scaffold/run-manifest.json`
+## Finalize `evidence/scaffold/run-manifest.json`
+
+This file was created at the start of Phase 3 with `completed_at: null` and
+has been accumulating `written` / `merged` / `skipped` entries since. Set
+`completed_at` now that every write has succeeded; do not recreate the file:
 
 ```json
 {
@@ -626,8 +674,12 @@ entry there is a real hazard, not a cosmetic defect.
 }
 ```
 
-`written` is what BrownKit owns and may delete on a later run. `merged` is
-what it modified but does not own — never deleted. `skipped` records every
+`written` is what BrownKit owns and may delete on a later run — create-only:
+a path enters `written` only if it did not exist on disk before BrownKit's
+own first write to it. `merged` is what it modified but does not own — this
+includes both `prepend-section` / `hooks` targets and any path (typically
+an `instructions_mode: write` target) that already existed before BrownKit
+wrote to it; `merged` entries are never deleted. `skipped` records every
 planned artifact the evidence could not support, with the reason.
 
 Set `completed_at` only after every write succeeds. A null `completed_at`
@@ -656,7 +708,6 @@ is how Phase 2 detects an interrupted run.
 # Outputs
 
 - `evidence/scaffold/run-manifest.json`
-- `evidence/scaffold/client-integrations.json`
 - `evidence/scaffold/instructions.md`
 - `evidence/scaffold/prompts/{name}.md`
 - `evidence/scaffold/hooks/{name}.json`
@@ -677,8 +728,9 @@ is how Phase 2 detects an interrupted run.
 3. No generic placeholders. Every body references real evidence paths,
    entity names, and file paths. Where a tool command was `not-collected`,
    the body says so explicitly rather than naming an invented command.
-4. Every client in `client-integrations.json` has output at the path its
-   `templates/clients.yml` entry declares, in the declared format.
+4. Every client in `run-manifest.json`'s `plan.clients` has output at the
+   path its `templates/clients.yml` entry declares, in the declared format —
+   verify against the `written` list.
 5. `run-manifest.json` lists every written path; `merged` entries are
    flagged not-owned; `completed_at` is set.
 6. `workflow.json.phases.scaffold.status == "completed"`.

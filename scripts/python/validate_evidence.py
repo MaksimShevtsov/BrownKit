@@ -35,6 +35,19 @@ COVERAGE_LABEL = re.compile(
 )
 
 
+def _is_fraction(value) -> bool:
+    """True iff value is a real (non-bool) number in [0, 1].
+
+    `isinstance(x, (int, float))` is also `True` for `bool` in Python, and
+    discover.md:137 defines both `actual` and `target` as fractions in
+    [0,1] -- a sidecar that instead reports a percentage (e.g. `93` meaning
+    93%, or a `bool`) must not be trusted as a fraction, or the coverage
+    check silently computes a percentage 100x too large or too small.
+    """
+    return isinstance(value, (int, float)) and not isinstance(value, bool) \
+        and 0 <= value <= 1
+
+
 def _coverage_figure(evidence: Path):
     """Resolve file-to-capability coverage.
 
@@ -42,17 +55,24 @@ def _coverage_figure(evidence: Path):
     labeled line. Never scans for a bare percentage: coverage.md also
     carries orphan rates, and a positional match reads the wrong number.
 
+    `actual` and `target` are only trusted when they are real numbers (not
+    `bool`) in [0, 1], per discover.md:137. An out-of-range or wrong-shape
+    `actual` (e.g. `93` instead of `0.93`) falls through to the labeled-line
+    fallback in coverage.md rather than being scaled into a nonsense
+    percentage. An out-of-range `target` is dropped so the caller's 90.0
+    default applies, rather than deriving a bogus threshold from it.
+
     Returns (percent, target_percent, orphans, source).
     """
     summary = evidence / "discovery/coverage-summary.json"
     if summary.exists():
         data = _load_json(summary)
         actual = data.get("actual") if isinstance(data, dict) else None
-        if isinstance(actual, (int, float)):
+        if _is_fraction(actual):
             target = data.get("target")
             return (
                 actual * 100,
-                target * 100 if isinstance(target, (int, float)) else None,
+                target * 100 if _is_fraction(target) else None,
                 data.get("orphans"),
                 "coverage-summary.json",
             )

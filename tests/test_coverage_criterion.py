@@ -95,5 +95,58 @@ class HonestSubTargetTests(unittest.TestCase):
         self.assertEqual(result["status"], "pass")
 
 
+class OutOfRangeSidecarTests(unittest.TestCase):
+    """`actual`/`target` must be fractions in [0,1] per discover.md:137. A
+    sidecar reporting a percentage where a fraction belongs (or vice versa)
+    must not be trusted at face value -- that is exactly the failure class
+    this release exists to remove."""
+
+    def tearDown(self):
+        shutil.rmtree(TMP, ignore_errors=True)
+
+    def test_actual_out_of_range_falls_back_to_labeled_line(self):
+        # actual: 0.93 correct fraction, but here we simulate the reverse
+        # mistake -- actual reported as a percentage (93) instead of 0.93.
+        # An out-of-range actual must fall through to the coverage.md
+        # labeled line rather than being scaled into a bogus 9300%.
+        result = criterion10(build(
+            coverage_md=ORPHAN_FIRST,
+            summary={"schema_version": "1.0", "actual": 93, "target": 0.90,
+                     "mapped": 93, "significant": 100, "orphans": 0, "dead_code": 0},
+        ))
+        self.assertEqual(result["status"], "pass")
+        self.assertIn("93.4", result["detail"])
+        self.assertIn("coverage.md labeled line", result["detail"])
+
+    def test_target_out_of_range_falls_back_to_90_default(self):
+        # target: 90 (a percentage) instead of 0.90 (a fraction) must not
+        # become a 9000% threshold -- it must fall back to the 90.0 default.
+        result = criterion10(build(summary={
+            "schema_version": "1.0", "actual": 0.93, "target": 90,
+            "mapped": 93, "significant": 100, "orphans": 0, "dead_code": 0,
+        }))
+        self.assertEqual(result["status"], "pass")
+        self.assertIn("target 90%", result["detail"])
+
+    def test_boolean_actual_is_rejected(self):
+        # bool is a subclass of int in Python; isinstance(True, (int, float))
+        # is True, so this must be explicitly excluded.
+        result = criterion10(build(
+            coverage_md=ORPHAN_FIRST,
+            summary={"schema_version": "1.0", "actual": True, "target": 0.90,
+                     "mapped": 1, "significant": 1, "orphans": 0, "dead_code": 0},
+        ))
+        self.assertEqual(result["status"], "pass")
+        self.assertIn("coverage.md labeled line", result["detail"])
+
+    def test_boolean_target_is_rejected(self):
+        result = criterion10(build(summary={
+            "schema_version": "1.0", "actual": 0.93, "target": True,
+            "mapped": 93, "significant": 100, "orphans": 0, "dead_code": 0,
+        }))
+        self.assertEqual(result["status"], "pass")
+        self.assertIn("target 90%", result["detail"])
+
+
 if __name__ == "__main__":
     unittest.main()
