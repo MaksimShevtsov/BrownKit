@@ -28,6 +28,23 @@
     "security_composite": { "likelihood": 0.30, "impact": 0.40, "exposure": 0.30 },
     "qa_composite": { "coverage_gap": 0.35, "testability": 0.30, "defect_density": 0.20, "change_velocity": 0.15 }
   },
+  "stack": {
+    "language": null,
+    "backend": null,
+    "frontend": null,
+    "database": null,
+    "package_manager": null
+  },
+  "paths": {
+    "src": null,
+    "test": null,
+    "migrations": null
+  },
+  "tools": {
+    "test_runner": { "command": null, "source": "not-collected", "confidence": null },
+    "build":       { "command": null, "source": "not-collected", "confidence": null },
+    "lint":        { "command": null, "source": "not-collected", "confidence": null }
+  },
   "inputs": {
     "ndepend_export": null,
     "db_schema_export": null,

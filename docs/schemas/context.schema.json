@@ -24,7 +24,18 @@
           "properties": {
             "primary_languages":  { "type": "array", "items": { "type": "string" } },
             "build_systems":      { "type": "array", "items": { "type": "string" } },
-            "package_manifests":  { "type": "array", "items": { "type": "string" } },
+            "package_manifests":  {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["language", "path", "pattern"],
+                "properties": {
+                  "language": { "type": "string" },
+                  "path":     { "type": "string" },
+                  "pattern":  { "type": "string" }
+                }
+              }
+            },
             "frameworks":         { "type": "array", "items": { "type": "string" } }
           }
         }
@@ -92,6 +103,35 @@
         }
       }
     },
+    "stack": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "language":        { "type": ["string", "null"] },
+        "backend":         { "type": ["string", "null"] },
+        "frontend":        { "type": ["string", "null"] },
+        "database":        { "type": ["string", "null"] },
+        "package_manager": { "type": ["string", "null"] }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "src":        { "type": ["string", "null"] },
+        "test":       { "type": ["string", "null"] },
+        "migrations": { "type": ["string", "null"] }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "test_runner": { "$ref": "#/$defs/tool" },
+        "build":       { "$ref": "#/$defs/tool" },
+        "lint":        { "$ref": "#/$defs/tool" }
+      }
+    },
     "inputs": {
       "type": "object",
       "additionalProperties": { "type": ["string", "null"] },
@@ -106,5 +146,17 @@
     },
     "evidence_dir": { "type": "string" },
     "created_at":   { "type": "string" }
+  },
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "required": ["command", "source", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "command":    { "type": ["string", "null"] },
+        "source":     { "type": "string" },
+        "confidence": { "enum": ["HIGH", "MEDIUM", "LOW", null] }
+      }
+    }
   }
 }
