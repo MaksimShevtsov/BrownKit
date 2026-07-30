@@ -46,6 +46,14 @@ The two are one problem: the seam where `/generate` outgrew its contract is exac
 seam where its inputs stopped existing. The scaffolding half is the only consumer of the
 missing fields.
 
+**A third, independent defect rides along in this release.** `validate_evidence.py:139`
+takes the first `\d{1,3}%` match in `coverage.md` as the file-to-capability coverage
+figure, while `discover.md:111` instructs the agent to write architectural risks into that
+same file using the example phrase "8% orphan rate in `payments/`". A healthy run whose
+orphan note lands above the coverage line reports `fail — reported: 8%` on acceptance
+criterion 10. It is unrelated to the `/generate` seam but small, self-contained, and
+addressed in §6.
+
 ---
 
 ## 2. Decisions
@@ -305,7 +313,54 @@ web search, no improvised format.
 
 ---
 
-## 6. Migration and compatibility
+## 6. Coverage-criterion fix
+
+Independent of the `/generate` seam; included here because it is small and self-contained.
+
+**D3 gains a machine-readable sidecar.** `commands/discover.md` D3 writes
+`evidence/discovery/coverage-summary.json` alongside the existing narrative
+`coverage.md`:
+
+```json
+{
+  "schema_version": "1.0",
+  "actual": 0.873,
+  "target": 0.90,
+  "mapped": 412,
+  "significant": 472,
+  "orphans": 38,
+  "dead_code": 22
+}
+```
+
+**The validator prefers the sidecar and falls back to a labeled line.**
+`validate_evidence.py` criterion 10 reads `coverage-summary.json` when present. When it is
+absent, it looks for an explicitly labeled line — `File-to-capability coverage: 87.3%` —
+which D3 is also required to emit into `coverage.md`. Only if neither is found does it
+report `needs-review`. The bare positional `re.search` is removed entirely.
+
+The fallback path is load-bearing, not polish: every existing v1.0.2 evidence tree has
+`coverage.md` and no sidecar, so a JSON-only validator would regress criterion 10 to
+`needs-review` for all of them and break the additive promise of decision 3.
+
+**Second problem fixed in the same place.** `discover.md:114` says explicitly "do not force
+to 90% — report the actual percentage and identify the specific gaps that blocked the
+target," but criterion 10 could only emit `pass`/`fail` against a bare number, so an
+honestly-reported 87% with documented gaps was indistinguishable from a failure. Carrying
+`target` and `orphans` lets the validator distinguish them: below target **with** a
+non-zero orphan count and a populated gap section reports `needs-review` with the actual
+figure, rather than a flat `fail`.
+
+**No JSON schema for the sidecar.** `docs/schemas/` holds the five load-bearing contracts
+shared *across* phases. This file has one producer (D3) and one consumer
+(`validate_evidence.py`), and six flat numeric fields. Its shape is documented in
+`discover.md` D3 instead. Adding a sixth schema would also mean amending
+`docs/schemas/README.md:3`, which states "five load-bearing JSON artifacts" — cost without
+benefit.
+
+---
+
+## 7. Migration and compatibility
 
 Ships as **v1.1.0**. `extension.yml` gains an eleventh command entry for
 `speckit.brownkit.scaffold`.
@@ -331,23 +386,25 @@ first runs.
 
 ---
 
-## 7. Change inventory
+## 8. Change inventory
 
 **New (4)**
 
 - `commands/scaffold.md`
 - `templates/clients.yml`
 - `docs/phases/scaffold.md`
-- `scripts/python/check_prompt_refs.py` — reference-integrity guard, see §8.3
+- `scripts/python/check_prompt_refs.py` — reference-integrity guard, see §9.3
 
-**Modified (15)**
+**Modified (17)**
 
 | File | Change |
 |---|---|
 | `commands/generate.md` | Delete Parts D / D-bis / E (~680 lines); fix the two misnamed refs; nine gates → six; deprecated flags; next-step line |
 | `commands/init.md` | Parse candidates (step 2); ambiguity-only questions (step 3); write `stack`/`paths`/`tools` (step 4); new acceptance gate |
+| `commands/discover.md` | D3 writes `coverage-summary.json` and a labeled coverage line in `coverage.md` (§6) |
 | `commands/finish.md` | Index the `scaffold` phase in `manifest.json` |
 | `scripts/python/detect_stack.py` | Candidate block for six ecosystems plus CI extraction; drop the unused `max_depth` parameter |
+| `scripts/python/validate_evidence.py` | Criterion 10 reads the sidecar, falls back to the labeled line; positional regex removed; `needs-review` for honest sub-target coverage (§6) |
 | `docs/schemas/context.schema.json` | Declare `stack`/`paths`/`tools` as optional; fix `package_manifests` type |
 | `docs/schemas/workflow.schema.json` | Add `scaffold` to `patternProperties` only |
 | `docs/schemas/manifest.schema.json` | Add `scaffold` to `patternProperties` only |
@@ -360,9 +417,10 @@ first runs.
 | `docs/methodology.md` | Phase-to-artifact map row for `/scaffold` |
 | `scripts/README.md` | `detect-stack` purpose line — now also emits tool candidates; script-index row for `check-prompt-refs` |
 
-**Untouched:** `commands/{scan,discover,assess,report,gate,validate,enrich}.md`, all
-scripts other than `detect_stack.py`, all report templates, `templates/domain-model.md`,
-`config-template.yml`.
+**Untouched:** `commands/{scan,assess,report,gate,validate,enrich}.md`, all scripts other
+than `detect_stack.py` and `validate_evidence.py`, all report templates,
+`templates/domain-model.md`, `config-template.yml`, `docs/phases/discover.md` (it describes
+D3's purpose, not its output files, so the sidecar needs no edit there).
 
 The README hooks-count fix resolves a separate factual error found during analysis:
 `README.md:28` says "Three read-only commands" while `extension.yml` registers five hooks.
@@ -371,7 +429,7 @@ The statement becomes accurate under this design, since the fifth hook still poi
 
 ---
 
-## 8. Verification
+## 9. Verification
 
 There is no test harness in the repository, so verification is a concrete command list.
 
@@ -401,11 +459,17 @@ There is no test harness in the repository, so verification is a concrete comman
    is a repo-maintenance tool rather than a pipeline accelerator, so it gets no bash or
    PowerShell shim.
 
+4. **Coverage criterion against a regression fixture.** Build a throwaway `coverage.md`
+   whose first percentage is an orphan rate — the exact `discover.md:111` phrasing, "8%
+   orphan rate in `payments/`" — above a labeled coverage line reading 93%. Assert
+   criterion 10 reports `pass` at 93%, not `fail` at 8%. Then assert the sidecar takes
+   precedence when both are present, and that a tree with neither reports `needs-review`.
+
 ---
 
-## 9. Out of scope
+## 10. Out of scope
 
-Four findings from the same analysis pass are deliberately **not** addressed here. They
+Three findings from the same analysis pass are deliberately **not** addressed here. They
 are independent of this seam and each warrants its own change:
 
 - **Only 1 of 10 commands uses spec-kit's `scripts: {sh, ps}` convention.** `init.md`
@@ -413,10 +477,6 @@ are independent of this seam and each warrants its own change:
   `./.specify/scripts/bash/*.sh` in prose, offering no PowerShell path. On Windows those
   four calls fail and the agent silently falls back to reading coverage XML itself,
   losing the determinism the helpers exist to provide.
-- **`validate_evidence.py:139` has a live false-fail.** It takes the *first*
-  `\d{1,3}%` match in `coverage.md` as the coverage figure, while `discover.md:111`
-  instructs the agent to write architectural risks into that same file using the example
-  phrase "8% orphan rate in `payments/`". Needs a labeled marker, not positional regex.
 - **`pyramid_shape` never influences scoring.** It is elicited at `/init`,
   schema-validated, and read only at `report.md:222` as narrative. A trophy-shaped project
   is still scored against classic-shaped coverage defaults (0.7 / 0.3 / 0.1) in
