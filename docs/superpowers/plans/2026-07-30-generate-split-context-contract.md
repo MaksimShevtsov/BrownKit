@@ -1635,7 +1635,7 @@ anything**. Deleting files in `.claude/` or `.github/` without confirmation
 is not acceptable, even when BrownKit wrote them.
 ```
 
-4. **Phase 3 — Universal generation.** Move, verbatim: the skill output format and rules from `generate.md:511-536`; core skills from `579-593`; capability-derived skills from `595-610`; business-rules from `612-635`; security-guidelines from `637-659`; dev skills from `661-682`; stack skills from `684-704`; project instructions from `710-748`; dev prompts from `750-780`; hooks from `782-804`; and all of Part E, `generate.md:808-922`.
+4. **Phase 3 — Universal generation.** Move, verbatim: the skill output format and rules from `generate.md:511-536`; **the "Claude Code / claude — extra frontmatter" heading and its `| Field | Rule |` table from `538-553`**; core skills from `579-593`; capability-derived skills from `595-610`; business-rules from `612-635`; security-guidelines from `637-659`; dev skills from `661-682`; stack skills from `684-704`; project instructions from `710-748`; dev prompts from `750-780`; hooks from `782-804`; and all of Part E, `generate.md:808-922`.
 
 Retarget every staging path from `evidence/generate/` to `evidence/scaffold/`: `instructions.md`, `prompts/`, `hooks/`, `client-integrations.json`.
 
@@ -1651,11 +1651,23 @@ Load `templates/clients.yml`. For each selected client, resolve its entry
 1. Substitute `{name}` into the client's `skills_path`.
 2. Copy the body unchanged. Never re-derive content per client — the
    universal artifact from Phase 3 is the single source.
-3. Add the client's `extra_frontmatter` fields. For `claude`, populate
-   `allowed-tools` per the table below; for `opencode`, set
-   `compatibility: opencode`; for `cursor`, set `globs` and `alwaysApply`.
-4. Record every written path in the run manifest's `written` list, tagged
+3. Add the client's `extra_frontmatter` fields, per the field-rules table in
+   Phase 3 for `claude`; for `opencode`, set `compatibility: opencode`; for
+   `cursor`, set `globs` and `alwaysApply`.
+4. Transform to the client's `format`. `skill-md` copies the body as-is.
+   `agent-md` (copilot) drops the `metadata` block and emits a paired
+   `.prompt.md` at the client's `prompts_path`. `mdc` (cursor) is not
+   SKILL.md-shaped: emit a single `.mdc` file with `globs` and
+   `alwaysApply` frontmatter and the body beneath.
+5. Record every written path in the run manifest's `written` list, tagged
    with the client id.
+
+**`templates/clients.yml` is the single source for every client path.** Do
+not restate a path in prose — a hardcoded table beside the data file is how
+the two drift, and a reader cannot tell which wins. Every field listed in a
+client's `extra_frontmatter` must have a population rule stated somewhere in
+this command; a field with no rule forces the agent to invent a value, so
+remove it from the list instead.
 
 For `instructions_mode: prepend-section`, insert a `# {Project Name}`
 section at the top of the existing file and record the path in `merged`,
