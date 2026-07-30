@@ -107,9 +107,37 @@ For every **orphan** file (mapped to nothing):
 4. If it is unreferenced by any entry point or test → mark `dead_code` with
    evidence (no callers, no tests, git last-modified date).
 
-Output: `evidence/discovery/coverage.md` — file-to-capability mapping,
-orphan resolutions, and architectural risks (e.g., "8% orphan rate in
-`payments/` suggests hidden capability or abandoned experiment").
+Outputs — **both** are required:
+
+1. `evidence/discovery/coverage.md` — file-to-capability mapping, orphan
+   resolutions, and architectural risks (e.g., "8% orphan rate in
+   `payments/`" suggests hidden capability or abandoned experiment). It must
+   contain a line in exactly this form, so acceptance validation can find
+   the figure among the other percentages in the document:
+
+   ```
+   File-to-capability coverage: 93.4%
+   ```
+
+2. `evidence/discovery/coverage-summary.json` — the same figures, machine
+   readable:
+
+   ```json
+   {
+     "schema_version": "1.0",
+     "actual": 0.934,
+     "target": 0.90,
+     "mapped": 441,
+     "significant": 472,
+     "orphans": 24,
+     "dead_code": 7
+   }
+   ```
+
+   `actual` and `target` are fractions in `[0,1]`. `/finish` acceptance
+   validation prefers this file and falls back to the labeled line above.
+   Reporting `orphans` is what lets validation distinguish an honestly
+   reported sub-target coverage from an unexplained failure.
 
 If coverage < 90% after orphan resolution, **do not force to 90%** — report
 the actual percentage and identify the specific gaps that blocked the target.
@@ -424,6 +452,7 @@ Both are valid continuations; `/report` is non-blocking and re-runnable.
 
 - `evidence/discovery/analysis.md`
 - `evidence/discovery/coverage.md`
+- `evidence/discovery/coverage-summary.json`
 - `evidence/discovery/l1-capabilities.md`
 - `evidence/discovery/l2-capabilities.md`
 - `evidence/discovery/domain-model.md`
@@ -438,7 +467,9 @@ Both are valid continuations; `/report` is non-blocking and re-runnable.
    single-operation capability with explicit rationale).
 3. Every entity has exactly one owner — or a conflict is surfaced.
 4. File-to-capability coverage ≥ 90% — or the actual percentage is reported
-   with the specific gaps preventing it.
+   with the specific gaps preventing it. Both `coverage.md` (with its
+   labeled `File-to-capability coverage: N%` line) and
+   `coverage-summary.json` exist.
 5. Every L1 and L2 has a `security_context` block — even if fields are `null`.
 6. Every L1 and L2 has a `qa_context` block with explicit `"not-collected"`
    markers where signals are absent.

@@ -30,6 +30,44 @@ def _load_json(path: Path):
         return {"__error__": str(e)}
 
 
+COVERAGE_LABEL = re.compile(
+    r"File-to-capability coverage:\s*(\d{1,3}(?:\.\d+)?)\s*%", re.IGNORECASE
+)
+
+
+def _coverage_figure(evidence: Path):
+    """Resolve file-to-capability coverage.
+
+    Prefers the machine-readable sidecar, falls back to an explicitly
+    labeled line. Never scans for a bare percentage: coverage.md also
+    carries orphan rates, and a positional match reads the wrong number.
+
+    Returns (percent, target_percent, orphans, source).
+    """
+    summary = evidence / "discovery/coverage-summary.json"
+    if summary.exists():
+        data = _load_json(summary)
+        actual = data.get("actual") if isinstance(data, dict) else None
+        if isinstance(actual, (int, float)):
+            target = data.get("target")
+            return (
+                actual * 100,
+                target * 100 if isinstance(target, (int, float)) else None,
+                data.get("orphans"),
+                "coverage-summary.json",
+            )
+
+    coverage_md = evidence / "discovery/coverage.md"
+    if coverage_md.exists():
+        match = COVERAGE_LABEL.search(
+            coverage_md.read_text(encoding="utf-8", errors="ignore")
+        )
+        if match:
+            return float(match.group(1)), None, None, "coverage.md labeled line"
+
+    return None, None, None, None
+
+
 def check(evidence: Path) -> list[dict]:
     results: list[dict] = []
 
@@ -132,21 +170,29 @@ def check(evidence: Path) -> list[dict]:
         "pass" if xcap.exists() else "n/a",
         "cross-capability-risks.json present" if xcap.exists() else "absent (run /assess)")
 
-    # Criterion 10: file-to-capability coverage (extract %)
-    coverage = evidence / "discovery/coverage.md"
-    if coverage.exists():
-        text = coverage.read_text(encoding="utf-8", errors="ignore")
-        m = re.search(r"(\d{1,3}(?:\.\d+)?)\s*%", text)
-        if m:
-            pct = float(m.group(1))
-            add(10, "File-to-capability coverage >= 90%",
-                "pass" if pct >= 90 else "fail",
-                f"reported: {pct}%")
+    # Criterion 10: file-to-capability coverage
+    pct, target_pct, orphans, source = _coverage_figure(evidence)
+    threshold = target_pct if target_pct is not None else 90.0
+    if pct is None:
+        if not (evidence / "discovery/coverage.md").exists():
+            add(10, "File-to-capability coverage >= target", "fail",
+                "coverage.md missing")
         else:
-            add(10, "File-to-capability coverage >= 90%", "needs-review",
-                "coverage.md present but no percentage detected")
+            add(10, "File-to-capability coverage >= target", "needs-review",
+                "no coverage-summary.json and no labeled "
+                "'File-to-capability coverage: N%' line in coverage.md")
+    elif pct >= threshold:
+        add(10, "File-to-capability coverage >= target", "pass",
+            f"reported: {pct:.1f}% (target {threshold:.0f}%) [{source}]")
+    elif orphans:
+        # discover.md:114 - report the actual figure with the gaps that
+        # blocked the target rather than forcing it. Not a flat failure.
+        add(10, "File-to-capability coverage >= target", "needs-review",
+            f"reported: {pct:.1f}% below target {threshold:.0f}% with "
+            f"{orphans} orphan(s) documented [{source}]")
     else:
-        add(10, "File-to-capability coverage >= 90%", "fail", "coverage.md missing")
+        add(10, "File-to-capability coverage >= target", "fail",
+            f"reported: {pct:.1f}% below target {threshold:.0f}% [{source}]")
 
     # Criterion 11: blueprint
     blueprint = evidence / "discovery/blueprint-comparison.md"
