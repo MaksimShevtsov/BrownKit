@@ -644,6 +644,16 @@ class ClassifyCommandTests(unittest.TestCase):
     def test_unrecognised_command_is_none(self):
         self.assertIsNone(ds._classify_command("mvn -B jacoco:report"))
 
+    def test_skiptests_flag_does_not_make_it_a_test_command(self):
+        """'-DskipTests' contains 'test' as a substring; it is not a test run."""
+        self.assertEqual(ds._classify_command("mvn -DskipTests package"), "build")
+
+    def test_build_property_flag_does_not_make_it_a_build(self):
+        """'-Dbuild.profile' contains 'build'; the command still runs tests."""
+        self.assertEqual(
+            ds._classify_command("mvn verify -Dbuild.profile=ci"), "test_runner"
+        )
+
 
 class CiExtractionTests(unittest.TestCase):
     def test_finds_jenkinsfile(self):
@@ -781,16 +791,24 @@ Add these before `def detect(`:
 
 ```python
 def _classify_command(cmd: str) -> str | None:
-    """Bucket a shell command into a tool category, or None if unrecognised."""
-    low = cmd.lower()
+    """Bucket a shell command into a tool category, or None if unrecognised.
+
+    Matches whole segments, not substrings. Bare substring matching gets this
+    wrong in both directions: "-DskipTests" contains "test" (so
+    "mvn -DskipTests package" reads as a test command) and "-Dbuild.profile"
+    contains "build" (so "mvn verify -Dbuild.profile=ci" reads as a build).
+    Splitting on non-alphanumerics makes both read correctly, because the
+    flag becomes "dskiptests" / "dbuild" rather than "test" / "build".
+    """
+    words = set(re.split(r"[^a-z0-9]+", cmd.lower()))
     for token in LINT_TOKENS:          # lint before test: "ruff check" is lint
-        if token in low:
+        if token in words:
             return "lint"
     for token in TEST_TOKENS:
-        if token in low:
+        if token in words:
             return "test_runner"
     for token in BUILD_TOKENS:
-        if token in low:
+        if token in words:
             return "build"
     return None
 
