@@ -32,10 +32,11 @@ Capture optional-phase flags:
 - `assess_done` — as in `/report`.
 - `report_done`  — as in `/generate`.
 - `generate_done` — `workflow.json.phases.generate.status == "completed"`.
+- `scaffold_done` — `workflow.json.phases.scaffold.status == "completed"`.
 
-Neither `/assess`, `/report`, nor `/generate` is strictly required — but
-each unchecked phase downgrades the handoff bundle. Report exactly which
-phases were skipped.
+Neither `/assess`, `/report`, `/generate`, nor `/scaffold` is strictly
+required — but each unchecked phase downgrades the handoff bundle. Report
+exactly which phases were skipped.
 
 ---
 
@@ -195,12 +196,22 @@ single team bundle):
       "report":   { "status": "completed | skipped", ... },
       "assess":   { ... },
       "generate": { ... },
+      "scaffold": { "status": "completed | skipped", ... },
       "finish":   { "status": "completed", ... }
     },
     "acceptance": { "total": 14, "passed": N, "failed": [...], "n/a": [...] },
     "teams": [{ "id": "...", "capabilities": [...], "bundle_path": "..." }]
   }
   ```
+
+Include the `scaffold` key only when `scaffold_done`. It is absent from the
+schema's `required` list precisely so a manifest from a run that skipped
+scaffolding stays valid.
+
+When `scaffold_done`, read `evidence/scaffold/run-manifest.json` and use its
+`written` list as the phase's `artifacts[]`. Do not re-walk `.agents/` or any
+client directory — the manifest is the record of what BrownKit owns, and
+files it does not own must not appear in the evidence manifest.
 
 ---
 
@@ -219,6 +230,10 @@ single team bundle):
 - **Bundles**: team count, capabilities per team, any `unassigned` items.
 - **Skipped phases** — explicit list with the impact on the handoff
   (e.g., "security-slice.md is absent because `/assess` was not run").
+- **Agent tooling** — when `scaffold_done`, the count of skills, subagents,
+  and client integrations from `evidence/scaffold/run-manifest.json`, plus
+  any `skipped` artifacts with their reasons. When not, one line: "agent
+  tooling not generated — run `speckit.brownkit.scaffold`".
 - **Next steps** — either (a) ship the bundles, (b) re-run a specific
   phase to close acceptance gaps, (c) run `/generate` / `/assess` if
   skipped.
