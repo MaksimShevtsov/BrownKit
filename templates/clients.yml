@@ -1,0 +1,90 @@
+# BrownKit client integration table.
+# Consumed by speckit.brownkit.scaffold to fan universal .agents/ output out
+# to each client's native location. Adding a client is a data edit here --
+# never a prompt edit, and never a web lookup.
+#
+# Fields:
+#   aliases            other ids that resolve to this entry
+#   skills_path        {name} is substituted with the skill directory name
+#   prompts_path       omit when the client has no separate prompt location
+#   instructions_path  where the project AI brief goes
+#   instructions_mode  write | prepend-section
+#   format             skill-md | agent-md | mdc
+#   extra_frontmatter  fields added on top of the agentskills.io standard set
+#   hooks              target file and key, omit when unsupported
+#   hooks_mode         merge (never overwrite a user-owned settings file)
+
+clients:
+  claude:
+    aliases: ["claude-code"]
+    skills_path: ".claude/skills/{name}/SKILL.md"
+    prompts_path: ".claude/skills/{name}/SKILL.md"
+    instructions_path: ".claude/CLAUDE.md"
+    instructions_mode: prepend-section
+    format: skill-md
+    extra_frontmatter:
+      - when_to_use
+      - argument-hint
+      - arguments
+      - allowed-tools
+      - disable-model-invocation
+      - user-invocable
+      - context
+      - paths
+    hooks: ".claude/settings.json#hooks"
+    hooks_mode: merge
+
+  agy:
+    aliases: []
+    skills_path: ".agents/skills/{name}/SKILL.md"
+    instructions_path: ".agents/AGENTS.md"
+    instructions_mode: write
+    format: skill-md
+    extra_frontmatter: []
+
+  copilot:
+    aliases: []
+    skills_path: ".github/agents/brownkit.{name}.agent.md"
+    prompts_path: ".github/prompts/brownkit.{name}.prompt.md"
+    instructions_path: ".github/copilot-instructions.md"
+    instructions_mode: write
+    format: agent-md
+    extra_frontmatter: []
+    no_metadata_block: true
+
+  gemini:
+    aliases: []
+    skills_path: ".gemini/skills/{name}/SKILL.md"
+    instructions_path: ".gemini/GEMINI.md"
+    instructions_mode: write
+    format: skill-md
+    extra_frontmatter: []
+    hooks: ".gemini/settings.json#hooks"
+    hooks_mode: merge
+
+  opencode:
+    aliases: []
+    skills_path: ".opencode/skills/{name}/SKILL.md"
+    instructions_path: "AGENTS.md"
+    instructions_mode: prepend-section
+    format: skill-md
+    extra_frontmatter:
+      - compatibility
+
+  cursor:
+    aliases: []
+    skills_path: ".cursor/rules/{name}.mdc"
+    instructions_path: ".cursor/rules/project.mdc"
+    instructions_mode: write
+    format: mdc
+    extra_frontmatter:
+      - globs
+      - alwaysApply
+
+  kiro:
+    aliases: []
+    skills_path: ".kiro/skills/{name}/SKILL.md"
+    instructions_path: ".kiro/AGENTS.md"
+    instructions_mode: write
+    format: skill-md
+    extra_frontmatter: []
