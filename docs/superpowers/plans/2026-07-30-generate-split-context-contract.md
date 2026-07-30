@@ -1589,7 +1589,12 @@ evidence tree, or `/init` could not resolve them — run in **degraded mode**:
 Never guess a command in degraded mode.
 ```
 
-2. **Phase 1 — Preflight and plan.** Move the interactive planning dialogue from `generate.md:296-380` verbatim (both the Q1 artifact checklist and the Q2 client question), and the local client-detection procedure from `generate.md:423-436` (the `.specify/integrations/` → `.specify/integrations.json` → directory-heuristics ladder). Then **delete** the paragraph at `generate.md:370-378` — the `agentskills.io` fetch and web-search fallback — and replace it with:
+2. **Phase 1 — Preflight and plan.** Move the interactive planning dialogue from `generate.md:296-380` verbatim (both the Q1 artifact checklist and the Q2 client question), and the local client-detection procedure from `generate.md:423-436` (the `.specify/integrations/` → `.specify/integrations.json` → directory-heuristics ladder). Then **delete `generate.md:362-378` in full** and replace it with the paragraph below. That range is the whole web-fallback mechanism, both halves:
+
+- **362–369** — the sentence "For any client not in the built-in table (see Step D-1), also ask:" plus the fenced dialogue offering `a) Paste the setup instructions URL` / `b) I'll search for the documentation myself` / `c) Skip this client`.
+- **371–375** — the prose that acts on choice (b) by fetching `agentskills.io/clients` and web-searching.
+
+Deleting only the prose leaves the dialogue still offering to search, immediately above a paragraph forbidding it — a self-contradicting prompt that preserves the exact affordance this change removes. Delete both.
 
 ```markdown
 For any client id not present in `templates/clients.yml`, do **not** search
