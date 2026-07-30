@@ -39,8 +39,8 @@ under `evidence/`. All five are optional and prompt before running.
 | `speckit.brownkit.validate` | after implement          | Verify the delivered implementation against spec seed commitments, security constraints, and QA targets. |
 | `speckit.brownkit.generate` | before constitution      | Prepare capability-scoped AI contexts and spec seeds before a constitution update. Writes under `evidence/`. |
 
-Pass `--strict` to `enrich`, `gate`, or `validate` to treat unresolved
-findings as a hard stop.
+Pass `--strict` to `gate` or `validate` to treat unresolved findings as a
+hard stop.
 
 ## Install
 
