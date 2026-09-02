@@ -410,5 +410,17 @@ class CliTests(unittest.TestCase):
              "blocked_testability", "qa_posture", "criticality"})
 
 
+class ShimTests(unittest.TestCase):
+    def test_shims_exist_and_delegate_to_the_module(self):
+        bash = ROOT / "scripts" / "bash" / "gate-verdict.sh"
+        ps1 = ROOT / "scripts" / "powershell" / "gate-verdict.ps1"
+        self.assertTrue(bash.is_file(), f"{bash} missing")
+        self.assertTrue(ps1.is_file(), f"{ps1} missing")
+        self.assertIn("gate_verdict.py",
+                      bash.read_text(encoding="utf-8"))
+        self.assertIn("gate_verdict.py",
+                      ps1.read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()
