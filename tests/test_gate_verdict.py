@@ -290,6 +290,16 @@ class VerdictMatrixTests(unittest.TestCase):
         payload = gv.evaluate(evidence, "BC-007", None)
         self.assertEqual(payload["verdict"], "NOT-ASSESSED")
 
+    def test_wrong_shape_catalog_is_not_assessed(self):
+        for shape in ({}, {"cats": []}, "oops"):
+            with self.subTest(shape=shape):
+                evidence = build()
+                (evidence / "security/vulnerabilities/catalog.json").write_text(
+                    json.dumps(shape), encoding="utf-8")
+                payload = gv.evaluate(evidence, "BC-007", None)
+                self.assertEqual(payload["verdict"], "NOT-ASSESSED")
+                self.assertIn("reason=catalog-missing", payload["verdict_line"])
+
     def test_l2_scope_narrows_control_gaps(self):
         overrides = dict(controls=[
             {"control_family": "Validation", "capability": "BC-007",

@@ -309,8 +309,10 @@ def evaluate(evidence: Path, cap: str, scope):
         return _not_assessed(cap, "capability-not-in-map")
 
     catalog, _ = load_json(evidence / "security/vulnerabilities/catalog.json")
-    if catalog is None:
-        # The catalog feeds BLOCK rule 1; its absence must not quietly pass.
+    # The catalog feeds BLOCK rule 1; an unreadable OR unrecognizable shape
+    # must not quietly pass as "no vulnerabilities found".
+    if catalog is None or _entries(
+            catalog, ("vulnerabilities", "entries", "items")) is None:
         return _not_assessed(cap, "catalog-missing")
 
     composite = composite_of(entry)
