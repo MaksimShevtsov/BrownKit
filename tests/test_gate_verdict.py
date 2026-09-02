@@ -4,6 +4,7 @@ import json
 import re
 import shutil
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -42,7 +43,16 @@ def write_json(path, data):
 
 def build(**overrides):
     """Temporary evidence tree for BC-007; every default spells PASS."""
-    shutil.rmtree(TMP, ignore_errors=True)
+    for attempt in range(3):
+        try:
+            shutil.rmtree(TMP)
+            break
+        except FileNotFoundError:
+            break
+        except OSError:
+            if attempt == 2:
+                raise
+            time.sleep(0.1)
     (TMP / "risk").mkdir(parents=True)
     (TMP / "security/vulnerabilities").mkdir(parents=True)
     (TMP / "security/controls").mkdir(parents=True)
