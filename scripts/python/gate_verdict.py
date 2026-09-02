@@ -250,3 +250,164 @@ def high_likelihood_unmitigated(threats, control_map):
             "description": threat.get("description", ""),
         })
     return out
+
+
+def _fmt(value):
+    """Compact, unambiguous rendering: 0.42 -> '0.42', 0.8 -> '0.8'."""
+    if isinstance(value, float):
+        text = f"{value:.3f}".rstrip("0").rstrip(".")
+        return text or "0"
+    return str(value)
+
+
+def verdict_line(cap, verdict, *, composite=None, confirmed_open=0,
+                 probable_open=0, blocked_testability=0, control_gaps=0,
+                 qa_posture="unknown", criticality="unknown", reason=None):
+    """Canonical single-line verdict. The `/gate` command quotes this
+    verbatim; changing the grammar requires bumping the `v1` marker."""
+    if verdict == "NOT-ASSESSED":
+        return f"BROWNKIT-GATE v1 {cap} NOT-ASSESSED reason={reason}"
+    return (
+        f"BROWNKIT-GATE v1 {cap} {verdict} "
+        f"composite={_fmt(composite)} "
+        f"confirmed_open={confirmed_open} "
+        f"probable_open={probable_open} "
+        f"blocked_testability={_fmt(blocked_testability)} "
+        f"control_gaps={_fmt(control_gaps)} "
+        f"qa_posture={qa_posture or 'unknown'} "
+        f"criticality={criticality or 'unknown'}"
+    )
+
+
+def _not_assessed(cap, reason):
+    return {
+        "schema_version": "1.0",
+        "capability": cap,
+        "verdict": "NOT-ASSESSED",
+        "verdict_line": verdict_line(cap, "NOT-ASSESSED", reason=reason),
+        "reasons": [f"not assessed: {reason}"],
+        "inputs": {},
+        "degraded": [],
+    }
+
+
+def evaluate(evidence: Path, cap: str, scope):
+    """Full gate evaluation. `scope` is the set of touched L2 ids, or None
+    for all of the capability's L2s. Verdict precedence: NOT-ASSESSED >
+    BLOCK > WARN > PASS; absent evidence never renders as PASS."""
+    workflow, _ = load_json(evidence / "workflow.json")
+    phases = workflow.get("phases") if isinstance(workflow, dict) else None
+    assess = phases.get("assess") if isinstance(phases, dict) else None
+    if not isinstance(assess, dict) or assess.get("status") != "completed":
+        return _not_assessed(cap, "assess-not-run")
+
+    risk_map, _ = load_json(evidence / "risk/unified-risk-map.json")
+    if risk_map is None:
+        return _not_assessed(cap, "risk-map-missing")
+    entry = find_capability(risk_map, cap)
+    if entry is None:
+        return _not_assessed(cap, "capability-not-in-map")
+
+    catalog, _ = load_json(evidence / "security/vulnerabilities/catalog.json")
+    if catalog is None:
+        # The catalog feeds BLOCK rule 1; its absence must not quietly pass.
+        return _not_assessed(cap, "catalog-missing")
+
+    composite = composite_of(entry)
+    confirmed, probable, reviewed = split_vulnerabilities(catalog, cap)
+    threats, _ = load_json(evidence / f"security/threats/{cap}.json")
+    control_map, _ = load_json(evidence / "security/controls/control-map.json")
+    qa_risk, _ = load_json(evidence / "qa/qa-risk-scores.json")
+    qa_gaps, _ = load_json(evidence / "qa/qa-gaps.json")
+
+    criticality = criticality_of(evidence, cap)
+    posture = posture_of(qa_risk, cap)
+    blocked = blocked_testability_for(qa_gaps, cap, scope)
+    gaps = control_gaps_for(control_map, cap, scope)
+    unmitigated = high_likelihood_unmitigated(threats, control_map)
+
+    block_reasons = []
+    if confirmed:
+        ids = ", ".join(str(v.get("id", "?")) for v in confirmed)
+        block_reasons.append(f"confirmed_open={len(confirmed)} ({ids})")
+    if blocked and criticality == "high":
+        block_reasons.append(
+            f"blocked_testability={len(blocked)} on high-criticality capability")
+    if isinstance(composite, float) and composite >= 0.8:
+        block_reasons.append(f"composite={_fmt(composite)} >= 0.8")
+
+    warn_reasons = []
+    if probable:
+        ids = ", ".join(str(v.get("id", "?")) for v in probable)
+        warn_reasons.append(f"probable_open={len(probable)} ({ids})")
+    if posture == "high-risk":
+        warn_reasons.append("qa_posture=high-risk")
+    if isinstance(composite, float) and 0.6 <= composite < 0.8:
+        warn_reasons.append(f"composite={_fmt(composite)} in [0.6, 0.8)")
+    if gaps:
+        warn_reasons.append(
+            f"control_gaps={len(gaps)} on touched operations")
+
+    degraded = []
+    if not isinstance(composite, float):
+        degraded.append({"field": "composite",
+                         "issue": f"non-numeric composite: {composite}"})
+        warn_reasons.append(
+            f"composite={composite} — PASS requires a numeric composite < 0.6")
+    if criticality is None:
+        degraded.append({
+            "field": "criticality",
+            "issue": "not found in domain-model.md Security Context"})
+        if blocked:
+            warn_reasons.append(
+                "blocked testability present but criticality unknown — "
+                "BLOCK rule cannot fire")
+    if blocked is None:
+        degraded.append({"field": "qa-gaps.json",
+                         "issue": "missing or unrecognized shape"})
+        warn_reasons.append(
+            "blocked_testability=unknown (qa-gaps.json missing or unrecognized)")
+    if gaps is None:
+        degraded.append({"field": "control-map.json",
+                         "issue": "missing or unrecognized shape"})
+    if threats is None:
+        degraded.append({"field": f"security/threats/{cap}.json",
+                         "issue": "missing or unreadable"})
+
+    if block_reasons:
+        verdict, reasons = "BLOCK", block_reasons
+    elif warn_reasons:
+        verdict, reasons = "WARN", warn_reasons
+    else:
+        verdict, reasons = "PASS", ["no open blockers; numeric composite < 0.6"]
+
+    return {
+        "schema_version": "1.0",
+        "capability": cap,
+        "verdict": verdict,
+        "verdict_line": verdict_line(
+            cap, verdict,
+            composite=composite,
+            confirmed_open=len(confirmed),
+            probable_open=len(probable),
+            blocked_testability=(len(blocked) if blocked is not None
+                                 else "unknown"),
+            control_gaps=(len(gaps) if gaps is not None else "unknown"),
+            qa_posture=posture,
+            criticality=criticality,
+        ),
+        "reasons": reasons,
+        "inputs": {
+            "composite": composite,
+            "confirmed_open": confirmed,
+            "probable_open": probable,
+            "accepted": reviewed,
+            "high_likelihood_unmitigated": unmitigated,
+            "control_gaps": (gaps if gaps is not None else "unknown"),
+            "blocked_testability": (blocked if blocked is not None
+                                    else "unknown"),
+            "qa_posture": posture,
+            "criticality": criticality,
+        },
+        "degraded": degraded,
+    }

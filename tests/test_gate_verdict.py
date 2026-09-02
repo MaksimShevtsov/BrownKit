@@ -182,5 +182,132 @@ class HelperTests(unittest.TestCase):
         self.assertIsNone(gv.find_capability({"capabilities": "oops"}, "BC-007"))
 
 
+class VerdictMatrixTests(unittest.TestCase):
+    def tearDown(self):
+        shutil.rmtree(TMP, ignore_errors=True)
+
+    def test_clean_pass(self):
+        payload = gv.evaluate(build(), "BC-007", None)
+        self.assertEqual(payload["verdict"], "PASS")
+        self.assertEqual(gv.EXIT_CODES[payload["verdict"]], 0)
+        self.assertEqual(
+            payload["verdict_line"],
+            "BROWNKIT-GATE v1 BC-007 PASS composite=0.42 confirmed_open=0 "
+            "probable_open=0 blocked_testability=0 control_gaps=0 "
+            "qa_posture=release-ready criticality=medium")
+
+    def test_each_block_trigger(self):
+        cases = {
+            "confirmed": dict(vulns=[{"id": "V-1", "classification": "Confirmed",
+                                      "capability": "BC-007"}]),
+            "blocked_high": dict(qa_gaps={"gaps": [
+                {"capability": "BC-007", "l2": "BC-007-03",
+                 "severity": "blocked", "finding": "no DI seam"}]},
+                criticality="high"),
+            "composite": dict(composite=0.8),
+        }
+        for name, overrides in cases.items():
+            with self.subTest(trigger=name):
+                payload = gv.evaluate(build(**overrides), "BC-007", None)
+                self.assertEqual(payload["verdict"], "BLOCK")
+
+    def test_each_warn_trigger(self):
+        cases = {
+            "probable": dict(vulns=[{"id": "V-9", "classification": "Probable",
+                                     "capability": "BC-007"}]),
+            "posture": dict(posture="high-risk"),
+            "composite_band": dict(composite=0.6),
+            "control_gap": dict(controls=[
+                {"control_family": "Validation", "capability": "BC-007",
+                 "present": False,
+                 "gaps": [{"l2": "BC-007-03", "operation": "x",
+                           "issue": "missing"}]}]),
+        }
+        for name, overrides in cases.items():
+            with self.subTest(trigger=name):
+                payload = gv.evaluate(build(**overrides), "BC-007", None)
+                self.assertEqual(payload["verdict"], "WARN")
+
+    def test_boundaries(self):
+        self.assertEqual(
+            gv.evaluate(build(composite=0.799), "BC-007", None)["verdict"],
+            "WARN")
+        self.assertEqual(
+            gv.evaluate(build(composite=0.599), "BC-007", None)["verdict"],
+            "PASS")
+
+    def test_sentinel_composites_force_warn(self):
+        for sentinel in ("unknown", "partial"):
+            with self.subTest(sentinel=sentinel):
+                payload = gv.evaluate(build(composite=sentinel), "BC-007", None)
+                self.assertEqual(payload["verdict"], "WARN")
+                self.assertIn(f"composite={sentinel}", payload["verdict_line"])
+                self.assertTrue(payload["degraded"])
+
+    def test_blocked_with_unknown_criticality_downgrades_to_warn(self):
+        payload = gv.evaluate(build(
+            criticality=None,
+            qa_gaps={"gaps": [
+                {"capability": "BC-007", "l2": "BC-007-03",
+                 "severity": "blocked", "finding": "no DI seam"}]},
+        ), "BC-007", None)
+        self.assertEqual(payload["verdict"], "WARN")
+        self.assertIn("criticality=unknown", payload["verdict_line"])
+
+    def test_qa_gaps_unrecognized_shape_forces_warn(self):
+        payload = gv.evaluate(build(qa_gaps={"unexpected": True}), "BC-007", None)
+        self.assertEqual(payload["verdict"], "WARN")
+        self.assertIn("blocked_testability=unknown", payload["verdict_line"])
+
+    def test_not_assessed_paths(self):
+        evidence = build(assess="pending")
+        payload = gv.evaluate(evidence, "BC-007", None)
+        self.assertEqual(payload["verdict"], "NOT-ASSESSED")
+        self.assertIn("reason=assess-not-run", payload["verdict_line"])
+
+        evidence = build()
+        (evidence / "workflow.json").unlink()
+        self.assertEqual(
+            gv.evaluate(evidence, "BC-007", None)["verdict"], "NOT-ASSESSED")
+
+        evidence = build()
+        (evidence / "risk/unified-risk-map.json").unlink()
+        payload = gv.evaluate(evidence, "BC-007", None)
+        self.assertIn("reason=risk-map-missing", payload["verdict_line"])
+
+        payload = gv.evaluate(build(), "BC-999", None)
+        self.assertIn("reason=capability-not-in-map", payload["verdict_line"])
+
+        evidence = build()
+        (evidence / "security/vulnerabilities/catalog.json").unlink()
+        payload = gv.evaluate(evidence, "BC-007", None)
+        self.assertIn("reason=catalog-missing", payload["verdict_line"])
+
+    def test_unreadable_risk_map_is_not_assessed_not_a_crash(self):
+        evidence = build()
+        (evidence / "risk/unified-risk-map.json").write_text("{not json",
+                                                             encoding="utf-8")
+        payload = gv.evaluate(evidence, "BC-007", None)
+        self.assertEqual(payload["verdict"], "NOT-ASSESSED")
+
+    def test_l2_scope_narrows_control_gaps(self):
+        overrides = dict(controls=[
+            {"control_family": "Validation", "capability": "BC-007",
+             "present": False,
+             "gaps": [{"l2": "BC-007-03", "operation": "a", "issue": "x"},
+                      {"l2": "BC-007-05", "operation": "b", "issue": "y"}]}])
+        unscoped = gv.evaluate(build(**overrides), "BC-007", None)
+        self.assertEqual(unscoped["verdict"], "WARN")
+        self.assertEqual(len(unscoped["inputs"]["control_gaps"]), 2)
+        scoped = gv.evaluate(build(**overrides), "BC-007", {"BC-007-01"})
+        self.assertEqual(scoped["verdict"], "PASS")
+
+    def test_reasons_cite_specific_ids(self):
+        payload = gv.evaluate(build(vulns=[
+            {"id": "V-1", "classification": "Confirmed",
+             "capability": "BC-007"}]), "BC-007", None)
+        self.assertTrue(any("V-1" in r for r in payload["reasons"]))
+
+
 if __name__ == "__main__":
     unittest.main()
