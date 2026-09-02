@@ -19,7 +19,10 @@ Exit codes:
 
 from __future__ import annotations
 
+import argparse
+import json
 import re
+import sys
 from pathlib import Path
 
 BC_ID = re.compile(r"^BC-\d{3}$")
@@ -33,7 +36,6 @@ SENTINELS = ("unknown", "partial")
 
 def load_json(path: Path):
     """(data, None) or (None, error). Never raises."""
-    import json
     try:
         return json.loads(path.read_text(encoding="utf-8")), None
     except OSError as e:
@@ -413,3 +415,31 @@ def evaluate(evidence: Path, cap: str, scope):
         },
         "degraded": degraded,
     }
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--capability", required=True,
+                        help="capability id, e.g. BC-007")
+    parser.add_argument(
+        "--l2", default="",
+        help="comma-separated touched L2 ids, e.g. BC-007-03,BC-007-05")
+    parser.add_argument("--evidence-dir", default="evidence")
+    args = parser.parse_args(argv)
+
+    cap = args.capability.strip().upper()
+    if not BC_ID.match(cap):
+        json.dump({"error": f"invalid capability id: {args.capability!r} "
+                            f"(expected BC-NNN)"}, sys.stdout, indent=2)
+        sys.stdout.write("\n")
+        return 2
+
+    scope = {x.strip().upper() for x in args.l2.split(",") if x.strip()} or None
+    payload = evaluate(Path(args.evidence_dir), cap, scope)
+    json.dump(payload, sys.stdout, indent=2)
+    sys.stdout.write("\n")
+    return EXIT_CODES[payload["verdict"]]
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

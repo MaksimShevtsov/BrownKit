@@ -319,5 +319,86 @@ class VerdictMatrixTests(unittest.TestCase):
         self.assertTrue(any("V-1" in r for r in payload["reasons"]))
 
 
+class CliTests(unittest.TestCase):
+    def tearDown(self):
+        shutil.rmtree(TMP, ignore_errors=True)
+
+    def run_cli(self, *args):
+        stdout = io.StringIO()
+        with contextlib.redirect_stdout(stdout):
+            code = gv.main(list(args))
+        return code, json.loads(stdout.getvalue())
+
+    def test_exit_codes_mirror_verdict(self):
+        self.assertEqual(self.run_cli(
+            "--capability", "BC-007", "--evidence-dir", str(build()))[0], 0)
+        self.assertEqual(self.run_cli(
+            "--capability", "BC-007",
+            "--evidence-dir", str(build(composite=0.9)))[0], 1)
+        self.assertEqual(self.run_cli(
+            "--capability", "BC-007",
+            "--evidence-dir", str(build(assess="pending")))[0], 2)
+        self.assertEqual(self.run_cli(
+            "--capability", "BC-007",
+            "--evidence-dir", str(build(posture="high-risk")))[0], 3)
+
+    def test_invalid_capability_id(self):
+        code, payload = self.run_cli(
+            "--capability", "payments", "--evidence-dir", str(build()))
+        self.assertEqual(code, 2)
+        self.assertIn("error", payload)
+
+    def test_capability_normalized(self):
+        code, payload = self.run_cli(
+            "--capability", "bc-007", "--evidence-dir", str(build()))
+        self.assertEqual(code, 0)
+
+    def test_verdict_line_grammar(self):
+        pattern = re.compile(
+            r"^BROWNKIT-GATE v1 BC-007 (PASS|WARN|BLOCK) "
+            r"composite=(\d(\.\d+)?|unknown|partial) "
+            r"confirmed_open=\d+ probable_open=\d+ "
+            r"blocked_testability=(\d+|unknown) "
+            r"control_gaps=(\d+|unknown) "
+            r"qa_posture=\S+ criticality=\S+$")
+        for overrides in ({}, {"composite": 0.9}, {"posture": "high-risk"},
+                          {"composite": "partial"}):
+            with self.subTest(overrides=overrides):
+                _, payload = self.run_cli(
+                    "--capability", "BC-007", "--evidence-dir",
+                    str(build(**overrides)))
+                self.assertRegex(payload["verdict_line"], pattern)
+
+    def test_not_assessed_grammar(self):
+        _, payload = self.run_cli(
+            "--capability", "BC-007", "--evidence-dir", str(build(assess="pending")))
+        self.assertRegex(
+            payload["verdict_line"],
+            r"^BROWNKIT-GATE v1 BC-007 NOT-ASSESSED reason=assess-not-run$")
+
+    def test_l2_flag_scopes_gaps(self):
+        overrides = dict(controls=[
+            {"control_family": "Validation", "capability": "BC-007",
+             "present": False,
+             "gaps": [{"l2": "BC-007-03", "operation": "a", "issue": "x"}]}])
+        code, payload = self.run_cli(
+            "--capability", "BC-007", "--l2", "BC-007-01",
+            "--evidence-dir", str(build(**overrides)))
+        self.assertEqual((code, payload["verdict"]), (0, "PASS"))
+
+    def test_payload_shape(self):
+        _, payload = self.run_cli(
+            "--capability", "BC-007", "--evidence-dir", str(build()))
+        self.assertEqual(
+            set(payload),
+            {"schema_version", "capability", "verdict", "verdict_line",
+             "reasons", "inputs", "degraded"})
+        self.assertEqual(
+            set(payload["inputs"]),
+            {"composite", "confirmed_open", "probable_open", "accepted",
+             "high_likelihood_unmitigated", "control_gaps",
+             "blocked_testability", "qa_posture", "criticality"})
+
+
 if __name__ == "__main__":
     unittest.main()
