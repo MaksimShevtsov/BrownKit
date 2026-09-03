@@ -59,7 +59,7 @@ scripts/bash/gate-verdict.sh --capability BC-007 [--l2 BC-007-03,BC-007-05]
 ```
 
 ```powershell
-scripts/powershell/gate-verdict.ps1 --capability BC-007 [--l2 BC-007-03,BC-007-05]
+scripts/powershell/gate-verdict.ps1 --capability BC-007 [--l2 "BC-007-03,BC-007-05"]
 ```
 
 - `--capability` — the matched BC id from Phase 1 (required).
@@ -135,10 +135,11 @@ items, listed for transparency, not re-raised}
 
 ### Control Gaps on Touched Operations
 {inputs.control_gaps: family | l2 | operation | issue}
-(empty if none)
+(empty if none; `unknown` when control-map.json was missing or unrecognized — see Degraded Inputs)
 
 ### QA Posture: {inputs.qa_posture}
 {inputs.blocked_testability findings, with file:line and seam recommendation}
+(unknown when qa-gaps.json was missing or unrecognized — see Degraded Inputs)
 
 ### Degraded Inputs
 {degraded[] entries — only present when inputs were missing}
