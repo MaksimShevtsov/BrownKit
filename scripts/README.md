@@ -22,6 +22,7 @@ compose cleanly into shell pipelines and into command prompts.
 | `find-secrets` | `/scan` (SS1) | Regex scan for hard-coded credentials; emits redacted snippets with HIGH/MEDIUM/LOW confidence. |
 | `git-churn` | `/discover` (D6a) / `/assess` | Per-file commits over a window, normalized to repo median, tiered `high/medium/low`. |
 | `validate-evidence` | `/finish` | Mechanical portion of the 14-point acceptance check. |
+| `gate-verdict` | `/gate` (hook) | Deterministic `PASS / WARN / BLOCK / NOT-ASSESSED` verdict for one capability from the `/assess` evidence tree; emits the canonical `BROWNKIT-GATE v1` verdict line the hook quotes verbatim. |
 | `check-prompt-refs` | repo maintenance | Verify every `context.json → path` reference in `commands/*.md` resolves against `context.schema.json`. Python only — no shims. |
 
 ## Invocation examples
@@ -34,6 +35,7 @@ scripts/bash/parse-coverage.sh --report coverage/coverage-final.json --format is
 scripts/bash/find-secrets.sh --root ./
 scripts/bash/git-churn.sh --root ./ --months 6
 scripts/bash/validate-evidence.sh --evidence-dir evidence --strict
+scripts/bash/gate-verdict.sh --capability BC-007 --l2 BC-007-03,BC-007-05
 python scripts/python/check_prompt_refs.py
 ```
 
@@ -64,5 +66,11 @@ Every script handles its own "not-collected" path:
 - `validate-evidence` returns `n/a` for criteria whose inputs are absent
   (e.g., `/assess` hasn't run); only `--strict` escalates `fail` to a
   non-zero exit.
+- `gate-verdict` exits 0/1/2/3 for PASS/BLOCK/NOT-ASSESSED/WARN.
+  NOT-ASSESSED is fail-closed: `assess-not-run`, a missing risk map or
+  vulnerability catalog, or a capability absent from the map can never
+  render as PASS. Missing secondary inputs (control map, qa-gaps) surface
+  as `unknown` counts in the verdict line plus a `degraded[]` entry —
+  absence is a signal.
 
 Scripts never fabricate defaults to "stay numeric". Absence is a signal.

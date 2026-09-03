@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `gate-verdict` helper script — deterministic `PASS / WARN / BLOCK /
+  NOT-ASSESSED` verdict for the `/gate` hook, computed from `/assess`
+  evidence. Emits a canonical `BROWNKIT-GATE v1 ...` verdict line the hook
+  must quote verbatim; exit codes 0/1/2/3 mirror the verdict.
+
+### Changed
+- `/gate` no longer classifies risk itself: the LLM matches the capability,
+  runs `gate-verdict`, and quotes its verdict line. Missing `/assess`
+  evidence surfaces as an explicit `NOT-ASSESSED` verdict instead of a
+  free-text warning; sentinel composites (`unknown`/`partial`) can no
+  longer drift into a PASS.
+- `/assess` pins two field names consumed by `gate-verdict`: the
+  vulnerability `status` review marker and the QA `posture` key.
+
 ## [1.1.0] - 2026-07-30
 
 ### Added

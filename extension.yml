@@ -44,7 +44,7 @@ provides:
       description: "Surface relevant L1/L2 capabilities and spec seeds from existing evidence for the feature in scope."
     - name: "speckit.brownkit.gate"
       file: "commands/gate.md"
-      description: "Check open STRIDE threats and QA risk score for the capability being implemented; raise warnings before proceeding."
+      description: "Check open STRIDE threats and QA risk for the capability being implemented; deterministic verdict from the gate-verdict script, quoted verbatim."
     - name: "speckit.brownkit.validate"
       file: "commands/validate.md"
       description: "Check acceptance criteria against the evidence tree for the capability delivered."

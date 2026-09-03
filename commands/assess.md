@@ -106,6 +106,10 @@ Classify each vulnerability:
 - **Potential** — theoretical; requires runtime verification or specific
   configuration to exploit.
 
+Review markers are recorded in the entry's `status` field — `false_positive`,
+`mitigated_elsewhere`, or `accepted_risk`; an absent `status` means `open`.
+The `/gate` verdict script counts only open entries.
+
 Per vulnerability:
 
 ```json
@@ -197,7 +201,9 @@ Classify each capability:
 - **Unknown** — insufficient signals to classify. Explicit, not default.
 
 Output:
-- `evidence/qa/qa-risk-scores.json` — per-capability dimension values + posture.
+- `evidence/qa/qa-risk-scores.json` — per-capability dimension values +
+  posture; each entry carries `capability` and `posture`
+  (`release-ready | needs-work | high-risk | unknown`).
 - `evidence/qa/qa-gaps.json` — actionable gaps derived from the above (e.g.,
   "BC-007-03 has blocked testability at PaymentGateway.cs:87; add DI seam").
 
