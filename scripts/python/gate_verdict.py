@@ -27,6 +27,8 @@ from pathlib import Path
 
 BC_ID = re.compile(r"^BC-\d{3}$")
 
+L2_ID = re.compile(r"^BC-\d{3}-\d{2}$")
+
 EXIT_CODES = {"PASS": 0, "WARN": 3, "BLOCK": 1, "NOT-ASSESSED": 2}
 
 REVIEWED_STATUSES = {"false_positive", "mitigated_elsewhere", "accepted_risk"}
@@ -137,11 +139,13 @@ def criticality_of(evidence: Path, cap: str):
 def posture_of(qa_risk, cap):
     """QA posture for the capability, or None when absent."""
     if isinstance(qa_risk, dict) and isinstance(qa_risk.get(cap), dict):
-        return qa_risk[cap].get("posture")
+        value = qa_risk[cap].get("posture")
+        return str(value).lower() if isinstance(value, str) else value
     for entry in _entries(qa_risk, ("capabilities", "entries")) or []:
         if isinstance(entry, dict) and cap in (entry.get("capability"),
                                                entry.get("id")):
-            return entry.get("posture")
+            value = entry.get("posture")
+            return str(value).lower() if isinstance(value, str) else value
     return None
 
 
@@ -377,6 +381,9 @@ def evaluate(evidence: Path, cap: str, scope):
     if threats is None:
         degraded.append({"field": f"security/threats/{cap}.json",
                          "issue": "missing or unreadable"})
+    if posture is None:
+        degraded.append({"field": "qa-risk-scores.json",
+                         "issue": "missing, unreadable, or capability entry absent"})
 
     if block_reasons:
         verdict, reasons = "BLOCK", block_reasons
@@ -434,8 +441,15 @@ def main(argv=None):
         sys.stdout.write("\n")
         return 2
 
-    scope = {x.strip().upper() for x in args.l2.split(",") if x.strip()} or None
+    raw_tokens = [x.strip().upper() for x in args.l2.split(",") if x.strip()]
+    scope = {x for x in raw_tokens if L2_ID.match(x)} or None
+    dropped = [x for x in raw_tokens if not L2_ID.match(x)]
     payload = evaluate(Path(args.evidence_dir), cap, scope)
+    if dropped:
+        payload["degraded"].append({
+            "field": "--l2",
+            "issue": f"ignored malformed token(s): {', '.join(dropped)}",
+        })
     json.dump(payload, sys.stdout, indent=2)
     sys.stdout.write("\n")
     return EXIT_CODES[payload["verdict"]]

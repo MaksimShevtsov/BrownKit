@@ -328,6 +328,19 @@ class VerdictMatrixTests(unittest.TestCase):
              "capability": "BC-007"}]), "BC-007", None)
         self.assertTrue(any("V-1" in r for r in payload["reasons"]))
 
+    def test_posture_casing_normalized(self):
+        evidence = build(posture="High-Risk")
+        payload = gv.evaluate(evidence, "BC-007", None)
+        self.assertEqual(payload["verdict"], "WARN")
+        self.assertIn("qa_posture=high-risk", payload["verdict_line"])
+
+    def test_missing_qa_risk_scores_degrades(self):
+        evidence = build()
+        (evidence / "qa/qa-risk-scores.json").unlink()
+        payload = gv.evaluate(evidence, "BC-007", None)
+        self.assertTrue(any(d["field"] == "qa-risk-scores.json"
+                            for d in payload["degraded"]))
+
 
 class CliTests(unittest.TestCase):
     def tearDown(self):
@@ -395,6 +408,30 @@ class CliTests(unittest.TestCase):
             "--capability", "BC-007", "--l2", "BC-007-01",
             "--evidence-dir", str(build(**overrides)))
         self.assertEqual((code, payload["verdict"]), (0, "PASS"))
+
+    def test_malformed_l2_tokens_dropped_conservatively(self):
+        overrides = dict(controls=[
+            {"control_family": "Validation", "capability": "BC-007",
+             "present": False,
+             "gaps": [{"l2": "BC-007-03", "operation": "a", "issue": "x"}]}])
+        code, payload = self.run_cli(
+            "--capability", "BC-007", "--l2", "payments",
+            "--evidence-dir", str(build(**overrides)))
+        self.assertEqual(code, 3)  # scope fell back to None -> gap counted -> WARN
+        self.assertTrue(any(d["field"] == "--l2" for d in payload["degraded"]))
+
+    def test_mixed_l2_tokens_keep_valid_only(self):
+        overrides = dict(controls=[
+            {"control_family": "Validation", "capability": "BC-007",
+             "present": False,
+             "gaps": [{"l2": "BC-007-03", "operation": "a", "issue": "x"},
+                      {"l2": "BC-007-05", "operation": "b", "issue": "y"}]}])
+        code, payload = self.run_cli(
+            "--capability", "BC-007", "--l2", "BC-007-03,BC-0073",
+            "--evidence-dir", str(build(**overrides)))
+        self.assertEqual((code, payload["verdict"]), (3, "WARN"))
+        self.assertEqual(len(payload["inputs"]["control_gaps"]), 1)
+        self.assertTrue(any(d["field"] == "--l2" for d in payload["degraded"]))
 
     def test_payload_shape(self):
         _, payload = self.run_cli(
