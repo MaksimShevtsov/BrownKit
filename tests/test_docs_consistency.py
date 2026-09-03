@@ -10,14 +10,14 @@ def read(rel):
 
 
 class VersionConsistency(unittest.TestCase):
-    def test_extension_version_is_1_1_0(self):
-        self.assertRegex(read("extension.yml"), r'version:\s*"1\.1\.0"')
+    def test_extension_version_is_1_2_0(self):
+        self.assertRegex(read("extension.yml"), r'version:\s*"1\.2\.0"')
 
-    def test_changelog_has_1_1_0_section(self):
-        self.assertIn("## [1.1.0]", read("CHANGELOG.md"))
+    def test_changelog_has_1_2_0_section(self):
+        self.assertIn("## [1.2.0]", read("CHANGELOG.md"))
 
-    def test_readme_install_pins_1_1_0(self):
-        self.assertIn("v1.1.0.zip", read("README.md"))
+    def test_readme_install_pins_1_2_0(self):
+        self.assertIn("v1.2.0.zip", read("README.md"))
 
 
 class CommandRegistration(unittest.TestCase):

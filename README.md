@@ -35,17 +35,20 @@ under `evidence/`. All five are optional and prompt before running.
 | Command | Fires | Purpose |
 | --- | --- | --- |
 | `speckit.brownkit.enrich`   | before specify / clarify | Surface matching L1/L2 capabilities and spec seeds for the feature in scope. |
-| `speckit.brownkit.gate`     | before implement         | Check open STRIDE threats and QA risk score; warn or block if risks are unaccepted. |
+| `speckit.brownkit.gate`     | before implement         | Run the deterministic `gate-verdict` script: PASS / WARN / BLOCK / NOT-ASSESSED from `/assess` evidence, verdict line quoted verbatim. |
 | `speckit.brownkit.validate` | after implement          | Verify the delivered implementation against spec seed commitments, security constraints, and QA targets. |
 | `speckit.brownkit.generate` | before constitution      | Prepare capability-scoped AI contexts and spec seeds before a constitution update. Writes under `evidence/`. |
 
 Pass `--strict` to `gate` or `validate` to treat unresolved findings as a
-hard stop.
+hard stop. For `gate`, `--strict` halts on a `BLOCK` or `NOT-ASSESSED`
+verdict; by default both require explicit acknowledgement before spec-kit
+continues. The verdict itself is always computed by the
+[`gate-verdict` script](scripts/README.md), never classified by the agent.
 
 ## Install
 
 ```bash
-specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v1.1.0.zip
+specify extension add brownkit --from https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v1.2.0.zip
 ```
 
 ## Update
@@ -89,8 +92,8 @@ specs live in [`docs/phases/`](docs/phases/).
 ## Helper scripts
 
 Deterministic accelerators (coverage parsers, git churn, secret scan,
-acceptance validator) live under [`scripts/`](scripts/README.md). Python
-core with bash and PowerShell shims. Stdlib only; Python ≥ 3.9.
+acceptance validator, gate verdict) live under [`scripts/`](scripts/README.md).
+Python core with bash and PowerShell shims. Stdlib only; Python ≥ 3.9.
 
 ## License
 
