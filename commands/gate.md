@@ -23,8 +23,9 @@ script, quote its verdict line verbatim, and render the details it carries.
 - `--l2 BC-007-03,BC-007-05` — pin the L2 operations this feature will touch;
   narrows control-gap and testability checks to those operations (default:
   all of the capability's L2s — over-warn, never under-warn).
-- `--strict` — exit with a non-zero signal if any `Confirmed` vulnerability or
-  `blocked` testability finding is open and unaccepted (default: warn only).
+- `--strict` — halt the workflow when the gate verdict is `BLOCK` or
+  `NOT-ASSESSED` (default: surface the verdict and require explicit user
+  acknowledgement before spec-kit continues).
 
 If no arguments are provided, infer the capability in scope from the spec-kit
 context (current spec title, task, or branch name).
@@ -58,7 +59,7 @@ scripts/bash/gate-verdict.sh --capability BC-007 [--l2 BC-007-03,BC-007-05]
 ```
 
 ```powershell
-scripts/powershell/gate-verdict.ps1 --capability BC-007 [-l2 BC-007-03,BC-007-05]
+scripts/powershell/gate-verdict.ps1 --capability BC-007 [--l2 BC-007-03,BC-007-05]
 ```
 
 - `--capability` — the matched BC id from Phase 1 (required).
