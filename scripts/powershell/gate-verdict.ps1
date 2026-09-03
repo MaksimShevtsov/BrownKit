@@ -1,4 +1,5 @@
 #!/usr/bin/env pwsh
 $ErrorActionPreference = 'Stop'
-& python3 (Join-Path $PSScriptRoot '..' 'python' 'gate_verdict.py') @args
+$script = Join-Path (Join-Path (Join-Path $PSScriptRoot '..') 'python') 'gate_verdict.py'
+& python3 $script @args
 exit $LASTEXITCODE
